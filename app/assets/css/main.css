@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/*
+ * Thème « cockpit » AstroVitals — cahier des charges §11.
+ * Mode sombre par défaut (fond #0B1220, surfaces #121B2E, texte #E6EDF7),
+ * mode clair via <html data-theme="light">.
+ * Les couleurs sémantiques (nominal / warning / critical / info) sont réservées
+ * aux statuts et ne doivent jamais être utilisées à titre décoratif.
+ */
+
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
+:root {
+  --av-bg: #0b1220;
+  --av-surface: #121b2e;
+  --av-surface-raised: #1a2540;
+  --av-border: #26324d;
+  --av-text: #e6edf7;
+  --av-text-muted: #9aa8c0;
+
+  --av-nominal: #22c55e;
+  --av-warning: #f59e0b;
+  --av-critical: #ef4444;
+  --av-info: #22d3ee;
+
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --av-bg: #f4f6fa;
+  --av-surface: #ffffff;
+  --av-surface-raised: #eef2f8;
+  --av-border: #cfd8e6;
+  --av-text: #0b1220;
+  --av-text-muted: #475569;
+
+  /* Teintes assombries pour garder un contraste AA sur fond clair */
+  --av-nominal: #15803d;
+  --av-warning: #b45309;
+  --av-critical: #b91c1c;
+  --av-info: #0e7490;
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: var(--av-bg);
+  --color-surface: var(--av-surface);
+  --color-surface-raised: var(--av-surface-raised);
+  --color-border: var(--av-border);
+  --color-text: var(--av-text);
+  --color-text-muted: var(--av-text-muted);
+
+  --color-nominal: var(--av-nominal);
+  --color-warning: var(--av-warning);
+  --color-critical: var(--av-critical);
+  --color-info: var(--av-info);
+
+  /* Cibles tactiles ≥ 44 px (WCAG / §7) */
+  --spacing-touch: 2.75rem;
+
+  --animate-alert-pulse: alert-pulse 1.6s ease-in-out infinite;
+
+  @keyframes alert-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+}
+
+@layer base {
+  html {
+    @apply bg-bg text-text font-sans antialiased;
+  }
+
+  /* Chiffres tabulaires pour les constantes vitales */
+  .tabular,
+  [data-vital] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-info;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
