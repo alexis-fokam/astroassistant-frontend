@@ -5,19 +5,28 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  modules: ['@nuxt/eslint'],
+
   css: ['~/assets/css/main.css'],
 
   vite: {
     plugins: [tailwindcss()],
   },
 
+  typescript: {
+    strict: true,
+  },
+
   app: {
     head: {
-      title: 'AstroVitals',
+      title: 'Astro Assistant',
       htmlAttrs: { lang: 'fr' },
       meta: [
-        { name: 'description', content: 'AstroVitals — On-Device Autonomous Health Companion' },
-        { name: 'theme-color', content: '#0B1220' },
+        {
+          name: 'description',
+          content: 'Astro Assistant — le médecin de bord intelligent, embarqué et hors ligne.',
+        },
+        { name: 'theme-color', content: '#ffffff' },
       ],
     },
   },

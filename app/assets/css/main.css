@@ -1,88 +1,138 @@
-@import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import 'tailwindcss';
+@import '@fontsource-variable/figtree';
+@import '@fontsource/poppins/500.css';
+@import '@fontsource/poppins/600.css';
+@import '@fontsource/poppins/700.css';
 
 /*
- * Thème « cockpit » AstroVitals — cahier des charges §11.
- * Mode sombre par défaut (fond #0B1220, surfaces #121B2E, texte #E6EDF7),
- * mode clair via <html data-theme="light">.
- * Les couleurs sémantiques (nominal / warning / critical / info) sont réservées
- * aux statuts et ne doivent jamais être utilisées à titre décoratif.
+ * Astro Assistant design tokens — light theme.
+ *
+ * Visual language inspired by monday.com: very light grey canvas, rounded white cards,
+ * thin rounded icons, filled status pills, soft shadows. Brand colours come from the logo
+ * (cyan → blue → violet).
+ *
+ * Product rules from the specification (§11):
+ * - green / amber / red are reserved for NOMINAL / WARNING / CRITICAL and never decorative;
+ *   the brand violet never signals a status;
+ * - every status is colour + icon + label; WCAG 2.1 AA contrast; touch targets ≥ 44 px.
  */
 
-@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+@theme {
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Poppins', 'Figtree Variable', ui-sans-serif, sans-serif;
 
-:root {
-  --av-bg: #0b1220;
-  --av-surface: #121b2e;
-  --av-surface-raised: #1a2540;
-  --av-border: #26324d;
-  --av-text: #e6edf7;
-  --av-text-muted: #9aa8c0;
+  /* Surfaces and text */
+  --color-canvas: #f6f7fb;
+  --color-surface: #ffffff;
+  --color-subtle: #f5f6f8;
+  --color-line: #d0d4e4;
+  --color-divider: #e7e9ef;
+  --color-ink: #323338;
+  --color-ink-muted: #676879;
+  --color-ink-faint: #9699a6;
 
-  --av-nominal: #22c55e;
-  --av-warning: #f59e0b;
-  --av-critical: #ef4444;
-  --av-info: #22d3ee;
+  /* Brand (logo) */
+  --color-brand-cyan: #2ce5e8;
+  --color-brand-sky: #46b6f6;
+  --color-brand-violet: #a35cf5;
+  --color-brand-lavender: #c4a3f7;
+  /* Buttons and links: AA contrast with white text. */
+  --color-primary: #1f6fdb;
+  --color-primary-hover: #185bb6;
+  --color-primary-soft: #e6f0fd;
+  /* AI assistant accent. */
+  --color-accent: #7c3aed;
+  --color-accent-soft: #f2ebfe;
 
-  color-scheme: dark;
-}
+  /* Statuses: solid (filled pill), ink (text on white, AA), soft (tinted background) */
+  --color-nominal: #00c875;
+  --color-nominal-ink: #00733f;
+  --color-nominal-soft: #e5f9ef;
+  --color-warning: #fdab3d;
+  --color-warning-ink: #9a5200;
+  --color-warning-soft: #fff4e2;
+  --color-critical: #d0304a;
+  --color-critical-ink: #b4233a;
+  --color-critical-soft: #fdecef;
+  --color-info: #1f6fdb;
+  --color-info-ink: #1a62c2;
+  --color-info-soft: #e6f0fd;
 
-[data-theme="light"] {
-  --av-bg: #f4f6fa;
-  --av-surface: #ffffff;
-  --av-surface-raised: #eef2f8;
-  --av-border: #cfd8e6;
-  --av-text: #0b1220;
-  --av-text-muted: #475569;
+  /* Corner radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
 
-  /* Teintes assombries pour garder un contraste AA sur fond clair */
-  --av-nominal: #15803d;
-  --av-warning: #b45309;
-  --av-critical: #b91c1c;
-  --av-info: #0e7490;
+  /* Soft elevation */
+  --shadow-card: 0 1px 2px rgb(29 46 85 / 0.04), 0 4px 14px rgb(29 46 85 / 0.06);
+  --shadow-raised: 0 6px 24px rgb(29 46 85 / 0.12);
+  --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.18);
 
-  color-scheme: light;
-}
-
-@theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-
-  --color-bg: var(--av-bg);
-  --color-surface: var(--av-surface);
-  --color-surface-raised: var(--av-surface-raised);
-  --color-border: var(--av-border);
-  --color-text: var(--av-text);
-  --color-text-muted: var(--av-text-muted);
-
-  --color-nominal: var(--av-nominal);
-  --color-warning: var(--av-warning);
-  --color-critical: var(--av-critical);
-  --color-info: var(--av-info);
-
-  /* Cibles tactiles ≥ 44 px (WCAG / §7) */
+  /* Minimum touch target (spec §7) */
   --spacing-touch: 2.75rem;
 
   --animate-alert-pulse: alert-pulse 1.6s ease-in-out infinite;
+  --animate-breathe: breathe 10s ease-in-out infinite;
 
   @keyframes alert-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(208 48 74 / 0.45);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgb(208 48 74 / 0);
+    }
   }
+
+  @keyframes breathe {
+    0%,
+    100% {
+      transform: scale(0.72);
+    }
+    50% {
+      transform: scale(1);
+    }
+  }
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(120deg, #2ce5e8 0%, #46b6f6 45%, #a35cf5 100%);
+}
+
+/* Darker gradient stops so gradient text stays legible on white. */
+@utility text-brand-gradient {
+  background-image: linear-gradient(120deg, #13b8c4 0%, #1f8fe0 45%, #8b45e6 100%);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 @layer base {
   html {
-    @apply bg-bg text-text font-sans antialiased;
+    @apply bg-canvas font-sans text-ink antialiased;
+    color-scheme: light;
   }
 
-  /* Chiffres tabulaires pour les constantes vitales */
-  .tabular,
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* Tabular figures for vital signs. */
   [data-vital] {
     font-variant-numeric: tabular-nums;
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-info;
+    @apply outline-2 outline-offset-2 outline-primary;
   }
 
   @media (prefers-reduced-motion: reduce) {
