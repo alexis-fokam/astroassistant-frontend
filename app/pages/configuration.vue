@@ -43,6 +43,12 @@ const form = reactive({
   flightProfile: 'Transit aller · blindage standard',
   latency: 12,
 })
+
+function selectDestination(destination: (typeof DESTINATIONS)[number]) {
+  form.destination = destination.id
+  // Destinations without a meaningful delay keep the current simulated latency.
+  if (destination.latency) form.latency = destination.latency
+}
 </script>
 
 <template>
@@ -101,10 +107,7 @@ const form = reactive({
                 ? 'border-2 border-primary bg-primary-soft'
                 : 'border-line hover:bg-subtle'
             "
-            @click="
-              form.destination = destination.id
-              form.latency = destination.latency || form.latency
-            "
+            @click="selectDestination(destination)"
           >
             <component
               :is="destination.icon"
