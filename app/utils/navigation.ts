@@ -5,5 +5,7 @@ export function moduleForPath(path: string): AppModule {
 }
 
 export function isNavItemActive(item: NavItem, path: string): boolean {
-  return path === item.to || (item.match !== undefined && path.startsWith(item.match))
+  if (path === item.to) return true
+  const prefixes = item.match === undefined ? [] : Array.isArray(item.match) ? item.match : [item.match]
+  return prefixes.some((prefix) => path.startsWith(prefix))
 }

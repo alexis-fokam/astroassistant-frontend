@@ -57,7 +57,7 @@ const heartRate = buildSeries(48, 122, { noise: 5, drift: 8, seed: 51 })
           <p class="text-[11px] font-semibold tracking-wider uppercase opacity-90">Écoulé</p>
           <p class="font-display text-4xl leading-none font-semibold tabular">{{ clock }}</p>
         </div>
-        <UiButton variant="secondary" :icon="Lock" to="/cmo">Clôturer (CMO)</UiButton>
+        <UiButton variant="secondary" :icon="Lock" to="/cmo/cloture-urgence">Clôturer (CMO)</UiButton>
       </div>
     </header>
 

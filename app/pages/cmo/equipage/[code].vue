@@ -118,7 +118,7 @@ const note = ref('')
       <div class="flex flex-wrap gap-2">
         <UiButton variant="secondary" size="sm" :icon="MessageSquare">Message</UiButton>
         <UiButton variant="secondary" size="sm" :icon="FileText">Rapport PDF</UiButton>
-        <UiButton size="sm" :icon="Plus">Nouvelle consultation</UiButton>
+        <UiButton size="sm" :icon="Plus" to="/cmo/consultation">Nouvelle consultation</UiButton>
       </div>
     </section>
 

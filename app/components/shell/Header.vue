@@ -9,12 +9,22 @@ const route = useRoute()
 const { mission, currentCrew, findCrew } = useMissionData()
 
 const currentModule = computed(() => moduleForPath(route.path))
-const user = computed(() => (currentModule.value.key === 'cmo' ? findCrew('AV-04')! : currentCrew))
-const userRole = computed(() =>
-  currentModule.value.key === 'cmo'
-    ? `${user.value.code} · Médecin de bord`
-    : `${user.value.code} · Astronaute`,
-)
+
+// Profile shown in the header: the CMO in the medical module, the jury in demo mode,
+// otherwise the signed-in astronaut.
+const user = computed(() => {
+  if (currentModule.value.key === 'simulation') {
+    return { name: 'Jury', initials: 'JU', tone: 1, role: 'Mode démonstration' }
+  }
+  const member = currentModule.value.key === 'cmo' ? findCrew('AV-04')! : currentCrew
+  const role = currentModule.value.key === 'cmo' ? 'Médecin de bord' : 'Astronaute'
+  return {
+    name: `${member.firstName} ${member.lastName}`,
+    initials: member.initials,
+    tone: member.tone,
+    role: `${member.code} · ${role}`,
+  }
+})
 </script>
 
 <template>
@@ -89,12 +99,12 @@ const userRole = computed(() =>
         <NuxtLink
           to="/connexion"
           class="ml-2 flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 hover:bg-subtle"
-          :aria-label="`${user.firstName} ${user.lastName}, changer de profil`"
+          :aria-label="`${user.name}, changer de profil`"
         >
           <UiAvatar :initials="user.initials" :tone="user.tone" :size="34" />
           <span class="hidden leading-tight xl:block">
-            <span class="block text-sm font-semibold">{{ user.firstName }} {{ user.lastName }}</span>
-            <span class="block text-xs text-ink-muted">{{ userRole }}</span>
+            <span class="block text-sm font-semibold">{{ user.name }}</span>
+            <span class="block text-xs text-ink-muted">{{ user.role }}</span>
           </span>
         </NuxtLink>
         <ShellEmergencyButton class="ml-2" />

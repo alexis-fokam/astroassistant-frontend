@@ -113,7 +113,7 @@ const ENGINE_LOG = (
           >Swagger /docs</UiButton
         >
         <UiButton variant="secondary" size="sm" :icon="RefreshCw">Réinitialiser</UiButton>
-        <UiButton variant="ai" size="sm" :icon="Sparkles">Visite guidée</UiButton>
+        <UiButton variant="ai" size="sm" :icon="Sparkles" to="/simulation?visite=1">Visite guidée</UiButton>
       </div>
     </div>
 
@@ -155,7 +155,7 @@ const ENGINE_LOG = (
       </article>
     </section>
 
-    <div class="grid gap-6 lg:grid-cols-3">
+    <div id="controle" class="grid gap-6 lg:grid-cols-3">
       <UiCard title="Accélération du temps" :icon="Timer">
         <div class="flex items-baseline justify-between">
           <p class="font-display text-3xl font-semibold text-primary tabular">×{{ speed }}</p>
