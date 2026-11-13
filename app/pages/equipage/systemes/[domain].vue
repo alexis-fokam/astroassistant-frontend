@@ -73,6 +73,13 @@ const RANGES = [
         <UiCard v-for="chart in detail.charts" :key="chart.id" :title="chart.label">
           <template #actions>
             <UiStatusBadge :level="chart.level" />
+            <NuxtLink
+              v-if="chart.id === 'heart_rate'"
+              to="/equipage/systemes/cardio/frequence-cardiaque"
+              class="text-xs font-semibold text-primary hover:underline"
+            >
+              Détail
+            </NuxtLink>
           </template>
           <div class="mb-3 flex items-baseline justify-between gap-3">
             <p

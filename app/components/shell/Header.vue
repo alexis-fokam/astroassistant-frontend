@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, CircleHelp, Inbox, LayoutGrid, Search, WifiOff } from 'lucide-vue-next'
+import { Bell, CircleHelp, Inbox, LayoutGrid, Search, Settings, WifiOff } from 'lucide-vue-next'
 import { APP_MODULES } from '~/constants/navigation'
 import { isNavItemActive, moduleForPath } from '~/utils/navigation'
 
@@ -95,6 +95,13 @@ const user = computed(() => {
         >
           <LayoutGrid :size="20" :stroke-width="1.7" aria-hidden="true" />
         </button>
+        <NuxtLink
+          to="/equipage/parametres"
+          class="hidden size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle sm:flex"
+          aria-label="Paramètres"
+        >
+          <Settings :size="20" :stroke-width="1.7" aria-hidden="true" />
+        </NuxtLink>
 
         <NuxtLink
           to="/connexion"

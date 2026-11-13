@@ -47,7 +47,7 @@ export const APP_MODULES: AppModule[] = [
     items: [
       { to: '/equipage', label: 'Tableau de bord', icon: LayoutDashboard },
       { to: '/equipage/systemes/cardio', label: 'Systèmes', icon: HeartPulse, match: '/equipage/systemes' },
-      { to: '/equipage/check-in', label: 'Check-in', icon: ClipboardCheck },
+      { to: '/equipage/check-in', label: 'Check-in', icon: ClipboardCheck, match: '/equipage/check-in' },
       { to: '/equipage/protocoles', label: 'Protocoles', icon: ListChecks, match: '/equipage/protocoles' },
       { to: '/equipage/dosimetrie', label: 'Dosimétrie', icon: Sun },
       { to: '/equipage/exercices', label: 'Exercices', icon: Dumbbell },
@@ -100,13 +100,4 @@ export const APP_MODULES: AppModule[] = [
       { to: '/simulation/journal', label: 'Journal moteur', icon: Code },
     ],
   },
-]
-
-/** Public website links (header and footer). */
-export const SITE_LINKS = [
-  { to: '/#fonctionnalites', label: 'Fonctionnalités' },
-  { to: '/#fonctionnement', label: 'Comment ça marche' },
-  { to: '/donnees-nasa', label: 'Données NASA' },
-  { to: '/scenarios', label: 'Scénarios' },
-  { to: '/avertissement', label: 'Limites' },
 ]

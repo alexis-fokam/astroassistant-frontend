@@ -61,7 +61,7 @@ const isTimedStep = computed(() => protocol.value.steps[currentStep.value]?.time
 
 function completeStep() {
   if (currentStep.value < protocol.value.steps.length - 1) currentStep.value += 1
-  else navigateTo('/equipage/protocoles')
+  else navigateTo('/equipage/protocoles/termine')
 }
 
 const liveHrv = buildSeries(30, 30, { noise: 1.5, drift: 7, seed: 31 })

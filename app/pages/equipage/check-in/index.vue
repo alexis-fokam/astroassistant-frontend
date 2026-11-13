@@ -128,7 +128,12 @@ function formatScale(value: number) {
         <div class="w-48">
           <p class="text-sm font-semibold">{{ answered }} réponses sur {{ total }}</p>
           <UiProgress class="mt-2" :value="(answered / total) * 100" label="Progression du check-in" />
-          <p class="mt-1.5 text-xs text-ink-muted">Temps moyen : 64 s</p>
+          <p class="mt-1.5 flex justify-between text-xs text-ink-muted">
+            Temps moyen : 64 s
+            <NuxtLink to="/equipage/check-in/historique" class="font-semibold text-primary hover:underline">
+              Historique
+            </NuxtLink>
+          </p>
         </div>
       </div>
     </section>
