@@ -64,7 +64,7 @@ const projection = computed(() =>
         <stop offset="1" :stop-color="color" stop-opacity="0" />
       </linearGradient>
     </defs>
-    <g v-if="grid" stroke="#e7e9ef" stroke-width="1">
+    <g v-if="grid" stroke="#eceef4" stroke-width="1">
       <line
         v-for="k in 3"
         :key="k"
@@ -91,7 +91,7 @@ const projection = computed(() =>
       :x2="VIEW_WIDTH"
       :y1="y(baseline)"
       :y2="y(baseline)"
-      stroke="#676879"
+      stroke="#9aa0b2"
       stroke-width="1.3"
       stroke-dasharray="6 5"
       vector-effect="non-scaling-stroke"

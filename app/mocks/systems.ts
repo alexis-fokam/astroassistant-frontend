@@ -75,7 +75,12 @@ export const SYSTEMS: Record<Domain, SystemDetail> = {
       },
     ],
     thresholds: [
-      { parameter: 'FC au repos', nominal: '50-90 bpm', warning: '< 45 ou 90-110', critical: '< 40 ou > 120' },
+      {
+        parameter: 'FC au repos',
+        nominal: '50-90 bpm',
+        warning: '< 45 ou 90-110',
+        critical: '< 40 ou > 120',
+      },
       { parameter: 'SpO₂', nominal: '≥ 95 %', warning: '91-94 %', critical: '≤ 90 %' },
       { parameter: 'PA systolique', nominal: '90-135 mmHg', warning: '136-159', critical: '≥ 160 ou < 85' },
       { parameter: 'Température', nominal: '36,1-37,4 °C', warning: '37,5-38,4', critical: '≥ 38,5' },

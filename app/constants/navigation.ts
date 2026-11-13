@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import {
   ClipboardCheck,
+  FolderHeart,
   HeartPulse,
   LayoutDashboard,
   ListChecks,
@@ -29,7 +30,7 @@ export interface AppModule {
 export const APP_MODULES: AppModule[] = [
   {
     key: 'crew',
-    label: 'Astronaute',
+    label: 'Équipage',
     to: '/equipage',
     items: [
       { to: '/equipage', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -44,15 +45,16 @@ export const APP_MODULES: AppModule[] = [
     label: 'Médecin de bord',
     to: '/cmo',
     items: [
-      { to: '/cmo', label: 'Équipage', icon: Users, match: '/cmo/equipage' },
-      { to: '/cmo/alertes', label: 'File d’alertes', icon: TriangleAlert },
+      { to: '/cmo', label: 'Équipage', icon: Users },
+      { to: '/cmo#alertes', label: 'File d’alertes', icon: TriangleAlert },
+      { to: '/cmo/equipage/AV-02', label: 'Dossiers médicaux', icon: FolderHeart, match: '/cmo/equipage' },
     ],
   },
   {
     key: 'simulation',
     label: 'Simulation',
     to: '/simulation',
-    items: [{ to: '/simulation', label: 'Scénarios & simulateur', icon: SlidersHorizontal }],
+    items: [{ to: '/simulation', label: 'Scénarios', icon: SlidersHorizontal }],
   },
 ]
 

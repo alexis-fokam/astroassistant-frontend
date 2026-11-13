@@ -19,7 +19,7 @@ const color = computed(() => LEVEL_HEX[levelFromScore(props.score)])
     :style="{ width: `${size}px`, height: `${size}px` }"
   >
     <svg :width="size" :height="size" class="-rotate-90" aria-hidden="true">
-      <circle :cx="size / 2" :cy="size / 2" :r="radius" stroke="#e7e9ef" :stroke-width="stroke" fill="none" />
+      <circle :cx="size / 2" :cy="size / 2" :r="radius" stroke="#eceef4" :stroke-width="stroke" fill="none" />
       <circle
         :cx="size / 2"
         :cy="size / 2"

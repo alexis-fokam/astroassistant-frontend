@@ -39,7 +39,9 @@ const RANGES = [
           :key="key"
           :to="`/equipage/systemes/${key}`"
           class="flex h-10 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors"
-          :class="key === domain ? 'bg-primary-soft text-primary' : 'text-ink-muted hover:bg-subtle hover:text-ink'"
+          :class="
+            key === domain ? 'bg-primary-soft text-primary' : 'text-ink-muted hover:bg-subtle hover:text-ink'
+          "
           :aria-current="key === domain ? 'page' : undefined"
         >
           <component :is="DOMAINS[key].icon" :size="17" :stroke-width="1.75" aria-hidden="true" />
@@ -56,7 +58,12 @@ const RANGES = [
       class="flex flex-wrap items-center gap-4 rounded-xl border p-4"
       :class="[LEVEL_STYLES[level].soft, 'border-current/20']"
     >
-      <UiStatusBadge :level="level" size="lg" variant="solid" :label="`${LEVEL_STYLES[level].label} · ${score} / 100`" />
+      <UiStatusBadge
+        :level="level"
+        size="lg"
+        variant="solid"
+        :label="`${LEVEL_STYLES[level].label} · ${score} / 100`"
+      />
       <h1 class="text-lg font-semibold text-ink">{{ DOMAINS[domain].label }}</h1>
       <p class="text-sm text-ink-muted">{{ detail.summary }}</p>
     </section>
@@ -64,7 +71,9 @@ const RANGES = [
     <div class="grid gap-6" :class="level === 'nominal' ? '' : 'lg:grid-cols-[2fr_1fr]'">
       <div class="grid gap-6 md:grid-cols-2">
         <UiCard v-for="chart in detail.charts" :key="chart.id" :title="chart.label">
-          <template #actions><UiStatusBadge :level="chart.level" /></template>
+          <template #actions>
+            <UiStatusBadge :level="chart.level" />
+          </template>
           <div class="mb-3 flex items-baseline justify-between gap-3">
             <p
               class="font-display text-2xl font-semibold"
@@ -110,7 +119,11 @@ const RANGES = [
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in detail.thresholds" :key="row.parameter" class="border-b border-divider last:border-0">
+            <tr
+              v-for="row in detail.thresholds"
+              :key="row.parameter"
+              class="border-b border-divider last:border-0"
+            >
               <th scope="row" class="px-5 py-3 text-left font-semibold">{{ row.parameter }}</th>
               <td class="px-5 py-3 text-nominal-ink">{{ row.nominal }}</td>
               <td class="px-5 py-3 text-warning-ink">{{ row.warning }}</td>

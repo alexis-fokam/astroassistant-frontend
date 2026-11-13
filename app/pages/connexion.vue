@@ -53,7 +53,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <section class="flex flex-col border-r border-divider bg-surface px-8 py-10 sm:px-14">
       <BrandLogo :size="36" />
       <h1 class="mt-14 text-3xl font-bold">Qui utilise le poste ?</h1>
-      <p class="mt-2 text-ink-muted">Profils locaux, données chiffrées sur l’appareil. Aucune connexion requise.</p>
+      <p class="mt-2 text-ink-muted">
+        Profils locaux, données chiffrées sur l’appareil. Aucune connexion requise.
+      </p>
 
       <ul class="mt-8 space-y-3" role="radiogroup" aria-label="Profil">
         <li v-for="member in crew" :key="member.code">

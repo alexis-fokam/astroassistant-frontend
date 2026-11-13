@@ -3,6 +3,7 @@ import type { Alert } from '~/types/domain'
 export const ALERTS: Alert[] = [
   {
     id: 41,
+    assignee: 'AV-04',
     level: 'critical',
     crew: 'AV-03',
     domain: 'cardio',
@@ -14,6 +15,7 @@ export const ALERTS: Alert[] = [
   },
   {
     id: 40,
+    assignee: 'AV-04',
     level: 'critical',
     crew: 'AV-02',
     domain: 'radiation',
@@ -28,6 +30,7 @@ export const ALERTS: Alert[] = [
     level: 'warning',
     crew: 'AV-04',
     domain: 'cardio',
+    domainLabel: 'Neuro-oculaire',
     title: 'Suspicion SANS',
     detail: 'Vision floue et céphalées depuis 2 jours',
     protocol: 'PRT-SANS-01',
@@ -36,6 +39,7 @@ export const ALERTS: Alert[] = [
   },
   {
     id: 36,
+    assignee: 'AV-04',
     level: 'warning',
     crew: 'AV-02',
     domain: 'behavioral',
@@ -47,6 +51,7 @@ export const ALERTS: Alert[] = [
   },
   {
     id: 33,
+    assignee: 'AV-04',
     level: 'warning',
     crew: 'AV-01',
     domain: 'musculoskeletal',

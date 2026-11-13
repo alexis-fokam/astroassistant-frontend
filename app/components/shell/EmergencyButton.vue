@@ -44,11 +44,11 @@ onBeforeUnmount(cancelHold)
   <button
     v-bind="$attrs"
     type="button"
-    class="flex h-10 items-center gap-2 rounded-md bg-critical px-3.5 text-[13px] font-bold tracking-wide text-white shadow-sm hover:brightness-95"
+    class="flex h-10 items-center gap-2 rounded-lg bg-critical px-3.5 text-sm font-semibold text-white hover:bg-critical-ink"
     @click="open = true"
   >
-    <Siren :size="18" :stroke-width="2.2" aria-hidden="true" />
-    URGENCE
+    <Siren :size="17" :stroke-width="2" aria-hidden="true" />
+    Urgence
   </button>
 
   <Teleport to="body">

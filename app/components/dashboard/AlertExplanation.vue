@@ -15,7 +15,7 @@ defineProps<AlertExplanation>()
     <div v-for="factor in factors" :key="factor.label">
       <div class="flex items-baseline justify-between gap-3 text-sm">
         <span class="font-semibold">{{ factor.label }}</span>
-        <span class="tabular text-xs text-ink-muted">{{ factor.value }}</span>
+        <span class="text-xs text-ink-muted tabular">{{ factor.value }}</span>
       </div>
       <UiProgress
         class="mt-1.5"
@@ -37,8 +37,10 @@ defineProps<AlertExplanation>()
 
     <dl class="space-y-1.5 text-sm">
       <div class="flex justify-between gap-3">
-        <dt class="flex items-center gap-1.5 text-ink-muted"><Cpu :size="14" aria-hidden="true" /> Isolation Forest</dt>
-        <dd class="tabular font-medium">{{ anomalyScore.toFixed(2).replace('.', ',') }} · anomalie</dd>
+        <dt class="flex items-center gap-1.5 text-ink-muted">
+          <Cpu :size="14" aria-hidden="true" /> Isolation Forest
+        </dt>
+        <dd class="font-medium tabular">{{ anomalyScore.toFixed(2).replace('.', ',') }} · anomalie</dd>
       </div>
       <div class="flex justify-between gap-3">
         <dt class="text-ink-muted">Confirmé sur</dt>

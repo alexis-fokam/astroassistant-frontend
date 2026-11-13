@@ -24,6 +24,8 @@ export interface CrewMember {
   firstName: string
   lastName: string
   initials: string
+  /** Avatar colour, 1-4 (design token --color-crew-N). */
+  tone: number
   role: string
   isCmo: boolean
   /** Global risk score, 0-100 (higher means riskier). */
@@ -38,11 +40,15 @@ export interface Alert {
   level: Level
   crew: string
   domain: Domain
+  /** Display label when the clinical area is narrower than the risk domain (e.g. SANS). */
+  domainLabel?: string
   title: string
   detail: string
   protocol: string | null
   since: string
   status: AlertStatus
+  /** Crew member code following up the alert (usually the CMO). */
+  assignee?: string
 }
 
 export interface ProtocolStep {

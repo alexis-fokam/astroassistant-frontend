@@ -47,7 +47,7 @@ export const LEVEL_STYLES: Record<Level, LevelStyle> = {
   info: {
     label: 'INFO',
     icon: Info,
-    solid: 'bg-info text-white',
+    solid: 'bg-info text-ink',
     soft: 'bg-info-soft text-info-ink',
     ink: 'text-info-ink',
     bar: 'bg-info',
@@ -58,6 +58,14 @@ export const LEVEL_STYLES: Record<Level, LevelStyle> = {
 export const LEVEL_HEX: Record<Level, string> = {
   nominal: '#00c875',
   warning: '#fdab3d',
-  critical: '#d0304a',
-  info: '#1f6fdb',
+  critical: '#cc3049',
+  info: '#46b6f6',
+}
+
+/**
+ * Line colour of a vital-sign chart. Healthy series use the brand blue (as in the
+ * Figma dashboard); only flagged series take their status colour.
+ */
+export function chartColor(level: Level): string {
+  return level === 'nominal' || level === 'info' ? '#2f86eb' : LEVEL_HEX[level]
 }

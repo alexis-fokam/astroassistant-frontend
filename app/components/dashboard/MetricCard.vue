@@ -17,6 +17,8 @@ const props = defineProps<{
   band?: [number, number]
   min?: number
   max?: number
+  /** Chart line colour; defaults to the status colour. */
+  color?: string
 }>()
 
 const isFlagged = computed(() => props.level !== 'nominal')
@@ -58,7 +60,7 @@ const isFlagged = computed(() => props.level !== 'nominal')
       :max="max"
       :height="48"
       :grid="false"
-      :color="LEVEL_HEX[level]"
+      :color="color ?? LEVEL_HEX[level]"
       :label="`Tendance ${label}`"
     />
   </article>

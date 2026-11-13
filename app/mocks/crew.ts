@@ -4,6 +4,7 @@ import type { CrewMember } from '~/types/domain'
 export const CREW: CrewMember[] = [
   {
     code: 'AV-01',
+    tone: 1,
     firstName: 'Nadia',
     lastName: 'Okafor',
     initials: 'NO',
@@ -16,6 +17,7 @@ export const CREW: CrewMember[] = [
   },
   {
     code: 'AV-02',
+    tone: 2,
     firstName: 'Léo',
     lastName: 'Martin',
     initials: 'LM',
@@ -28,6 +30,7 @@ export const CREW: CrewMember[] = [
   },
   {
     code: 'AV-03',
+    tone: 3,
     firstName: 'Sara',
     lastName: 'Lindqvist',
     initials: 'SL',
@@ -40,6 +43,7 @@ export const CREW: CrewMember[] = [
   },
   {
     code: 'AV-04',
+    tone: 4,
     firstName: 'Kenji',
     lastName: 'Arai',
     initials: 'KA',

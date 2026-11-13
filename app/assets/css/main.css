@@ -21,54 +21,64 @@
   --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Poppins', 'Figtree Variable', ui-sans-serif, sans-serif;
 
+  /* Values below mirror the Figma "00 · Design system" frame (file e8zNhXf7UVZwhodbq34arF). */
+
   /* Surfaces and text */
-  --color-canvas: #f6f7fb;
+  --color-canvas: #f5f7fb;
   --color-surface: #ffffff;
-  --color-subtle: #f5f6f8;
-  --color-line: #d0d4e4;
-  --color-divider: #e7e9ef;
-  --color-ink: #323338;
-  --color-ink-muted: #676879;
-  --color-ink-faint: #9699a6;
+  --color-subtle: #f5f7fb;
+  --color-line: #dde1ec;
+  --color-divider: #eceef4;
+  --color-ink: #2e3742;
+  --color-ink-muted: #676e83;
+  --color-ink-faint: #9aa0b2;
 
-  /* Brand (logo) */
-  --color-brand-cyan: #2ce5e8;
+  /* Brand (logo): navigation, actions and AI — never a status. */
+  --color-brand-cyan: #20d9e0;
   --color-brand-sky: #46b6f6;
-  --color-brand-violet: #a35cf5;
-  --color-brand-lavender: #c4a3f7;
+  --color-brand-blue: #2f86eb;
+  --color-brand-violet: #9b5cf2;
+  --color-brand-lavender: #c9b3f9;
   /* Buttons and links: AA contrast with white text. */
-  --color-primary: #1f6fdb;
-  --color-primary-hover: #185bb6;
-  --color-primary-soft: #e6f0fd;
+  --color-primary: #2b6fe6;
+  --color-primary-hover: #1f5bc4;
+  --color-primary-soft: #e6f0ff;
   /* AI assistant accent. */
-  --color-accent: #7c3aed;
-  --color-accent-soft: #f2ebfe;
+  --color-accent: #7a3fd6;
+  --color-accent-soft: #f1eafd;
 
-  /* Statuses: solid (filled pill), ink (text on white, AA), soft (tinted background) */
+  /* Statuses: solid (filled cell), ink (text on white, AA), soft (tinted background) */
   --color-nominal: #00c875;
-  --color-nominal-ink: #00733f;
-  --color-nominal-soft: #e5f9ef;
+  --color-nominal-ink: #007a4d;
+  --color-nominal-soft: #e3f8ee;
   --color-warning: #fdab3d;
-  --color-warning-ink: #9a5200;
-  --color-warning-soft: #fff4e2;
-  --color-critical: #d0304a;
-  --color-critical-ink: #b4233a;
-  --color-critical-soft: #fdecef;
-  --color-info: #1f6fdb;
-  --color-info-ink: #1a62c2;
-  --color-info-soft: #e6f0fd;
+  --color-warning-ink: #9a5b00;
+  --color-warning-soft: #fff3e0;
+  --color-critical: #cc3049;
+  --color-critical-ink: #b4233b;
+  --color-critical-soft: #fde8ec;
+  --color-info: #46b6f6;
+  --color-info-ink: #1f6fb2;
+  --color-info-soft: #e5f4fe;
 
-  /* Corner radii */
+  /* Crew avatar colours (one per member). */
+  --color-crew-1: #9b5cf2;
+  --color-crew-2: #2f86eb;
+  --color-crew-3: #e8697d;
+  --color-crew-4: #0fb5ae;
+
+  /* Corner radii: 4 table cells, 8 buttons and fields, 16 cards, 24 modals and hero. */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-2xl: 24px;
 
-  /* Soft elevation */
-  --shadow-card: 0 1px 2px rgb(29 46 85 / 0.04), 0 4px 14px rgb(29 46 85 / 0.06);
-  --shadow-raised: 0 6px 24px rgb(29 46 85 / 0.12);
-  --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.18);
+  /* Elevation: cards on hover, menus and floating bars. */
+  --shadow-card: 0 1px 3px rgb(46 55 66 / 0.08);
+  --shadow-hover: 0 1px 3px rgb(46 55 66 / 0.14);
+  --shadow-raised: 0 8px 28px rgb(46 55 66 / 0.18);
+  --shadow-menu: 0 8px 28px rgb(46 55 66 / 0.18);
 
   /* Minimum touch target (spec §7) */
   --spacing-touch: 2.75rem;
@@ -98,7 +108,12 @@
 }
 
 @utility bg-brand-gradient {
-  background-image: linear-gradient(120deg, #2ce5e8 0%, #46b6f6 45%, #a35cf5 100%);
+  background-image: linear-gradient(90deg, #20d9e0 0%, #46b6f6 45%, #9b5cf2 100%);
+}
+
+/* "Ask Astro" AI action button: cyan → violet with white text. */
+@utility bg-ai-gradient {
+  background-image: linear-gradient(90deg, #12b8c0 0%, #2f86eb 50%, #8b47e8 100%);
 }
 
 /* Darker gradient stops so gradient text stays legible on white. */

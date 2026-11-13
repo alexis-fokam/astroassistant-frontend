@@ -77,7 +77,8 @@ const SOURCES = [
             rel="noopener noreferrer"
             class="flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
           >
-            Source <ExternalLink :size="14" aria-hidden="true" />
+            Source
+            <ExternalLink :size="14" aria-hidden="true" />
             <span class="sr-only">(nouvel onglet)</span>
           </a>
         </div>

@@ -2,30 +2,31 @@
 import {
   Activity,
   ClipboardCheck,
-  Cpu,
   Droplet,
   Dumbbell,
-  Eye,
+  FileText,
   HeartPulse,
   ListChecks,
   Play,
-  Smile,
+  SlidersHorizontal,
+  Sparkles,
   Sun,
   Thermometer,
-  TriangleAlert,
+  Timer,
   Wind,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
-import { LEVEL_HEX } from '~/constants/levels'
+import { chartColor, LEVEL_HEX } from '~/constants/levels'
 
 /**
- * Page E-01: astronaut home (spec F1). Answers "am I OK?" in under 3 seconds:
- * global status first, then per-system cards, then details on demand.
+ * Page E-01: astronaut home (spec F1, Figma "E-01 · Tableau de bord astronaute").
+ * Answers "am I OK?" in under 3 seconds: global status first, then per-system
+ * cards, then details on demand.
  */
 definePageMeta({ layout: 'app' })
 useHead({ title: 'Tableau de bord' })
 
-const { currentCrew, vitals, hrvWeek, currentExplanation } = useMissionData()
+const { currentCrew, mission, vitals, hrvWeek } = useMissionData()
 
 const VITAL_ICONS: Record<string, Component> = {
   heart_rate: HeartPulse,
@@ -42,44 +43,81 @@ const RANGES = [
   { value: '7d', label: '7 j' },
   { value: 'mission', label: 'Mission' },
 ]
-const DAY_LABELS = ['J+136', 'J+137', 'J+138', 'J+139', 'J+140', 'J+141', 'Maint.']
+const DAY_LABELS = ['J+135', 'J+136', 'J+137', 'J+138', 'J+139', 'J+140', 'J+141', 'Aujourd’hui']
+
+const TASKS = [
+  {
+    icon: ClipboardCheck,
+    title: 'Check-in quotidien',
+    detail: 'Prévu à 08:00 · en retard',
+    action: 'Faire · 90 s',
+    to: '/equipage/check-in',
+    primary: true,
+  },
+  {
+    icon: Dumbbell,
+    title: 'Exercice ARED',
+    detail: 'Séance 2 sur 3 · 16:30',
+    action: 'Voir',
+    to: '/equipage',
+  },
+  { icon: Droplet, title: 'Hydratation', detail: '1,4 L sur 2,5 L', action: '+250 ml', to: undefined },
+  {
+    icon: Timer,
+    title: 'Test de vigilance',
+    detail: 'Avant l’EVA de demain',
+    action: 'Lancer',
+    to: '/equipage',
+  },
+]
 </script>
 
 <template>
   <div class="space-y-6">
+    <!-- Greeting -->
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-[28px] font-semibold">Bonjour {{ currentCrew.firstName }} 👋</h1>
+        <p class="mt-0.5 text-sm text-ink-muted">
+          Jour {{ mission.day }} de la mission {{ mission.name }} · dernière mesure il y a 4 s
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <UiButton variant="secondary" size="sm" :icon="SlidersHorizontal">Personnaliser</UiButton>
+        <UiButton variant="secondary" size="sm" :icon="FileText">Rapport du jour</UiButton>
+      </div>
+    </div>
+
     <!-- Global status (spec F1.1) -->
     <section
-      class="grid items-center gap-6 rounded-2xl border border-warning/40 bg-surface p-6 shadow-card lg:grid-cols-[1.5fr_auto_1fr]"
-      style="background-image: linear-gradient(100deg, rgb(253 171 61 / 0.16), transparent 60%)"
+      class="grid items-center gap-6 rounded-2xl border border-warning/50 p-6 lg:grid-cols-[1.6fr_auto_1fr]"
+      style="background-image: linear-gradient(100deg, #fff3e0 0%, #fffaf3 55%, #ffffff 100%)"
       aria-labelledby="global-status"
     >
-      <div class="flex gap-5">
-        <span class="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-warning-soft text-warning-ink">
-          <TriangleAlert :size="34" :stroke-width="2" aria-hidden="true" />
-        </span>
-        <div>
-          <p class="text-xs font-semibold tracking-wider text-warning-ink uppercase">
-            Statut global · mis à jour il y a 4 s
-          </p>
-          <h1 id="global-status" class="mt-1 text-2xl font-bold">WARNING — vigilance requise</h1>
-          <p class="mt-1.5 max-w-xl text-sm text-ink-muted">
-            Votre VFC baisse depuis 3 jours et vous cumulez 5,5 h de dette de sommeil. Le protocole
-            <b class="text-ink">PRT-STRESS-01</b> est recommandé.
-          </p>
-          <div class="mt-4 flex flex-wrap gap-3">
-            <UiButton :icon="Play" to="/equipage/protocoles/PRT-STRESS-01">Démarrer le protocole guidé</UiButton>
-            <UiButton variant="secondary" :icon="Eye" to="/equipage/systemes/behavioral">
-              Voir l’explication IA
-            </UiButton>
-          </div>
+      <div>
+        <div class="flex flex-wrap items-center gap-3">
+          <UiStatusBadge level="warning" size="md" label="WARNING · vigilance requise" />
+          <span class="text-xs text-ink-muted">Confirmé sur 2 mesures consécutives</span>
+        </div>
+        <h2 id="global-status" class="mt-4 text-[26px] leading-tight font-semibold">
+          Votre récupération est en baisse depuis 3 jours
+        </h2>
+        <p class="mt-2 max-w-xl text-[15px] text-ink-muted">
+          Votre variabilité cardiaque a chuté de 35 % et vous avez accumulé 5,5 h de dette de sommeil. Astro
+          vous recommande un protocole de respiration guidée de 9 minutes.
+        </p>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <UiButton :icon="Play" to="/equipage/protocoles/PRT-STRESS-01">Démarrer PRT-STRESS-01</UiButton>
+          <UiButton variant="ai" :icon="Sparkles" to="/equipage/systemes/behavioral">
+            Pourquoi cette alerte ?
+          </UiButton>
         </div>
       </div>
-      <div class="flex flex-col items-center gap-1.5">
-        <ChartsScoreRing :score="currentCrew.score" />
-        <span class="text-xs text-ink-muted">Score de risque global</span>
-      </div>
+      <ChartsScoreRing :score="currentCrew.score" :size="168" :stroke="16" caption="score de risque" />
       <div class="lg:border-l lg:border-divider lg:pl-6">
-        <p class="mb-1 px-2 text-xs font-semibold tracking-wider text-ink-muted uppercase">Scores par domaine</p>
+        <p class="mb-1 px-2 text-[11px] font-semibold tracking-wider text-accent uppercase">
+          Scores par domaine
+        </p>
         <DashboardDomainScores :scores="currentCrew.domains" />
       </div>
     </section>
@@ -90,13 +128,14 @@ const DAY_LABELS = ['J+136', 'J+137', 'J+138', 'J+139', 'J+140', 'J+141', 'Maint
         v-for="vital in vitals"
         :key="vital.id"
         :icon="VITAL_ICONS[vital.id]!"
+        :color="chartColor(vital.level)"
         v-bind="vital"
       />
     </section>
 
-    <!-- HRV trend and explanation (spec F1.6, F2.7) -->
+    <!-- HRV trend (spec F1.6) and today's tasks -->
     <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <UiCard title="Variabilité cardiaque (RMSSD)" :icon="Activity">
+      <UiCard title="Variabilité cardiaque" subtitle="RMSSD en millisecondes" :icon="Activity">
         <template #actions>
           <UiSegmented v-model="range" :options="RANGES" size="sm" label="Période" />
         </template>
@@ -105,106 +144,47 @@ const DAY_LABELS = ['J+136', 'J+137', 'J+138', 'J+139', 'J+140', 'J+141', 'Maint
             <i class="h-1 w-4 rounded-full" :style="{ background: LEVEL_HEX.warning }" /> Mesure
           </span>
           <span class="flex items-center gap-1.5">
-            <i class="h-0 w-4 border-t-2 border-dashed border-ink-muted" /> Baseline 48 ms
+            <i class="w-4 border-t-2 border-dashed border-ink-faint" /> Votre baseline · 48 ms
           </span>
-          <span class="flex items-center gap-1.5">
-            <i class="h-2.5 w-4 rounded-sm bg-nominal/20" /> Plage normale (≥ 80 % de la baseline)
-          </span>
+          <span class="flex items-center gap-1.5"
+            ><i class="h-2.5 w-4 rounded-sm bg-nominal/20" /> Zone normale</span
+          >
         </div>
         <ChartsLineChart
           :values="hrvWeek"
           :color="LEVEL_HEX.warning"
-          :height="220"
+          :height="230"
           :band="[38.4, 62]"
           :baseline="48"
           :min="20"
           :max="65"
-          label="VFC sur 7 jours : baisse de 49 à 31 millisecondes, sous la plage normale"
+          label="VFC sur 7 jours : baisse de 49 à 31 millisecondes, sous la zone normale"
         />
         <div class="mt-2 flex justify-between text-xs text-ink-muted">
           <span v-for="day in DAY_LABELS" :key="day">{{ day }}</span>
         </div>
       </UiCard>
 
-      <UiCard title="Pourquoi cette alerte ?" :icon="Cpu">
-        <DashboardAlertExplanation v-bind="currentExplanation" />
-      </UiCard>
-    </div>
-
-    <!-- Systems summary and today's tasks -->
-    <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-      <UiCard title="Dosimétrie" :icon="Sun">
-        <template #actions><UiStatusBadge level="nominal" /></template>
-        <p class="font-display text-2xl font-semibold" data-vital>
-          86,4 <span class="font-sans text-sm text-ink-muted">mSv mission</span>
-        </p>
-        <UiProgress class="mt-3" :value="31" bar-class="bg-nominal" label="Dose de carrière" />
-        <p class="mt-2 flex justify-between text-xs text-ink-muted">
-          <span>Carrière 186 / 600 mSv</span><span>31 %</span>
-        </p>
-        <NuxtLink to="/equipage/dosimetrie" class="mt-3 text-sm font-semibold text-primary hover:underline">
-          Ouvrir la dosimétrie
-        </NuxtLink>
-      </UiCard>
-
-      <UiCard title="Musculosquelettique" :icon="Dumbbell">
-        <template #actions><UiStatusBadge level="nominal" /></template>
-        <p class="font-display text-2xl font-semibold" data-vital>
-          −1,2 <span class="font-sans text-sm text-ink-muted">% / mois</span>
-        </p>
-        <p class="text-xs text-ink-muted">Densité osseuse estimée</p>
-        <p class="mt-3 flex justify-between text-sm">
-          <span class="text-ink-muted">Adhérence exercices</span><span class="font-semibold">71 %</span>
-        </p>
-        <UiProgress class="mt-1.5" :value="71" bar-class="bg-info" label="Adhérence aux exercices" />
-      </UiCard>
-
-      <UiCard title="Comportement" :icon="Smile">
-        <template #actions><UiStatusBadge level="warning" /></template>
-        <dl class="space-y-2 text-sm">
-          <div class="flex justify-between">
-            <dt class="text-ink-muted">Sommeil (nuit)</dt>
-            <dd class="font-semibold text-warning-ink">5 h 40</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-ink-muted">Stress déclaré</dt>
-            <dd class="font-semibold text-warning-ink">7 / 10</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-ink-muted">Humeur</dt>
-            <dd class="font-semibold">6 / 10</dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-ink-muted">Vigilance (PVT)</dt>
-            <dd class="font-semibold">312 ms</dd>
-          </div>
-        </dl>
-      </UiCard>
-
-      <UiCard title="Aujourd’hui" :icon="ListChecks">
-        <ul class="space-y-2">
-          <li class="flex items-center gap-3 rounded-lg bg-warning-soft p-3">
-            <ClipboardCheck :size="18" class="shrink-0 text-warning-ink" aria-hidden="true" />
-            <span class="flex-1 text-sm">
-              <b class="block">Check-in quotidien</b>
-              <span class="text-xs text-ink-muted">Prévu à 08:00 · en retard</span>
+      <UiCard title="À faire aujourd’hui" :icon="ListChecks">
+        <template #actions><span class="text-xs text-ink-muted">2 sur 6 faits</span></template>
+        <ul class="space-y-2.5">
+          <li
+            v-for="task in TASKS"
+            :key="task.title"
+            class="flex items-center gap-3 rounded-xl border border-divider p-3"
+          >
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-subtle text-ink-muted"
+            >
+              <component :is="task.icon" :size="18" :stroke-width="1.7" aria-hidden="true" />
             </span>
-            <UiButton size="sm" to="/equipage/check-in">Faire</UiButton>
-          </li>
-          <li class="flex items-center gap-3 rounded-lg bg-subtle p-3">
-            <Dumbbell :size="18" class="shrink-0 text-info-ink" aria-hidden="true" />
-            <span class="flex-1 text-sm">
-              <b class="block">Exercice ARED</b>
-              <span class="text-xs text-ink-muted">Séance 2 / 3 · 16:30</span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold">{{ task.title }}</span>
+              <span class="block text-xs text-ink-muted">{{ task.detail }}</span>
             </span>
-          </li>
-          <li class="flex items-center gap-3 rounded-lg bg-subtle p-3">
-            <Droplet :size="18" class="shrink-0 text-info-ink" aria-hidden="true" />
-            <span class="flex-1 text-sm">
-              <b class="block">Hydratation</b>
-              <span class="text-xs text-ink-muted">1,4 / 2,5 L</span>
-            </span>
-            <UiButton size="sm" variant="secondary">+250 ml</UiButton>
+            <UiButton size="sm" :variant="task.primary ? 'primary' : 'secondary'" :to="task.to">
+              {{ task.action }}
+            </UiButton>
           </li>
         </ul>
       </UiCard>

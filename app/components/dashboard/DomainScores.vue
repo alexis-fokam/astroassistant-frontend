@@ -25,7 +25,7 @@ defineProps<{ scores: Record<Domain, number> }>()
             aria-hidden="true"
           />
           <span class="flex-1 font-medium">{{ DOMAINS[key].short }}</span>
-          <span class="tabular font-semibold">{{ scores[key] }}</span>
+          <span class="font-semibold tabular">{{ scores[key] }}</span>
           <component
             :is="LEVEL_STYLES[levelFromScore(scores[key])].icon"
             :size="15"

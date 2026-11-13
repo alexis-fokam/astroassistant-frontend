@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent'
+    variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'ai'
     size?: 'sm' | 'md' | 'lg'
     to?: string
     icon?: Component
@@ -16,11 +16,12 @@ const props = withDefaults(
 )
 
 const variants = {
-  primary: 'bg-primary text-white hover:bg-primary-hover shadow-sm',
+  primary: 'bg-primary text-white hover:bg-primary-hover',
   secondary: 'bg-surface text-ink border border-line hover:bg-subtle',
   ghost: 'text-ink-muted hover:bg-subtle hover:text-ink',
-  danger: 'bg-critical text-white hover:brightness-95 shadow-sm',
-  accent: 'bg-accent text-white hover:brightness-110 shadow-sm',
+  danger: 'bg-critical text-white hover:bg-critical-ink',
+  // "Ask Astro" AI actions: brand gradient (Figma design system).
+  ai: 'bg-ai-gradient text-white hover:brightness-105',
 }
 const sizes = {
   sm: 'h-8 px-3 text-[13px] gap-1.5',
