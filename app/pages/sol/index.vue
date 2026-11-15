@@ -14,7 +14,6 @@ import {
   WifiOff,
 } from 'lucide-vue-next'
 import { LEVEL_HEX } from '~/constants/levels'
-import { CONTACT_WINDOWS, SYNC_PACKETS } from '~/mocks/syncPackets'
 
 /**
  * Page S-01: ground synchronisation centre (spec F10, Figma "S-01 · Centre de synchronisation sol").
@@ -25,6 +24,7 @@ definePageMeta({ layout: 'app' })
 useHead({ title: 'Synchronisation sol' })
 
 const { mission } = useMissionData()
+const { packets, contactWindows } = await useSyncScreen()
 
 const TIMELINE_HOURS = 30
 const NOW_HOURS = 14 + 5 / 60
@@ -38,13 +38,19 @@ const WINDOW_CLASSES = {
 // One-way latency, simulated between 4 and 22 minutes (spec F10.3).
 const latency = ref(mission.latencyMin)
 
-const priorityPackets = SYNC_PACKETS.filter((packet) => packet.level === 'critical')
-const standardPackets = SYNC_PACKETS.filter((packet) => packet.level !== 'critical')
-const groups = [
-  { title: 'Prioritaires', color: LEVEL_HEX.critical, packets: priorityPackets },
-  { title: 'Standard', color: '#2b6fe6', packets: standardPackets },
-]
-const COLUMNS = ['Priorité', 'SHA-256', 'Taille', 'Créé']
+const groups = computed(() => [
+  {
+    title: 'Prioritaires',
+    color: LEVEL_HEX.critical,
+    packets: packets.value.filter((packet) => packet.level === 'critical'),
+  },
+  {
+    title: 'Standard',
+    color: '#2b6fe6',
+    packets: packets.value.filter((packet) => packet.level !== 'critical'),
+  },
+])
+const COLUMNS = ['Priorité', 'SHA-256', 'Taille', 'Mesuré à bord', 'Reçu au sol']
 </script>
 
 <template>
@@ -76,12 +82,7 @@ const COLUMNS = ['Priorité', 'SHA-256', 'Taille', 'Créé']
         :value="`${latency} min`"
         sub="Simulée (4 à 22 min)"
       />
-      <DashboardKpiCard
-        label="En file"
-        :icon="Box"
-        :value="String(SYNC_PACKETS.length)"
-        sub="2,0 Mo compressés"
-      />
+      <DashboardKpiCard label="En file" :icon="Box" :value="String(packets.length)" sub="2,0 Mo compressés" />
     </section>
 
     <UiCard id="fenetres" title="Fenêtres de contact" :icon="CalendarDays">
@@ -96,7 +97,7 @@ const COLUMNS = ['Priorité', 'SHA-256', 'Taille', 'Créé']
         aria-label="Fenêtre passée à 6 h 10, prochaine de 16 h 19 à 17 h 04, suivante demain à 3 h 40"
       >
         <span
-          v-for="window in CONTACT_WINDOWS"
+          v-for="window in contactWindows"
           :key="window.label"
           class="absolute inset-y-2 flex items-center justify-center rounded-md text-xs font-medium whitespace-nowrap"
           :class="WINDOW_CLASSES[window.state]"
@@ -158,6 +159,7 @@ const COLUMNS = ['Priorité', 'SHA-256', 'Taille', 'Créé']
           <td class="px-4 py-2 text-center font-mono text-xs">{{ packet.sha256 }}</td>
           <td class="px-4 py-2 text-center tabular">{{ packet.size }}</td>
           <td class="px-4 py-2 text-center text-ink-muted">{{ packet.createdAt }}</td>
+          <td class="px-4 py-2 text-center text-ink-muted">{{ packet.receivedAt ?? '—' }}</td>
         </tr>
       </tbody>
     </BoardGroup>

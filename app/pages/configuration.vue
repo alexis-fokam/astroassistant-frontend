@@ -44,6 +44,26 @@ const form = reactive({
   latency: 12,
 })
 
+// Mission profile saved on the backend (CMO session): it sets the Earth-crew delay.
+const API_DESTINATIONS: Record<string, string> = {
+  leo: 'low_earth_orbit',
+  moon: 'moon',
+  'mars-transit': 'mars_transit',
+  'mars-surface': 'mars_surface',
+}
+const { setDestination } = useActions()
+const saveNote = ref<string | null>(null)
+
+async function save() {
+  try {
+    const saved = await setDestination(API_DESTINATIONS[form.destination]!)
+    saveNote.value = saved ? 'Profil de mission enregistré : le délai de communication est mis à jour.' : null
+  } catch (e) {
+    saveNote.value = (e as Error).message
+  }
+  await navigateTo('/profil/nouveau')
+}
+
 function selectDestination(destination: (typeof DESTINATIONS)[number]) {
   form.destination = destination.id
   // Destinations without a meaningful delay keep the current simulated latency.
@@ -82,10 +102,7 @@ function selectDestination(destination: (typeof DESTINATIONS)[number]) {
       </li>
     </ol>
 
-    <form
-      class="mx-auto mt-8 max-w-3xl rounded-2xl bg-surface p-8 shadow-raised"
-      @submit.prevent="navigateTo('/profil/nouveau')"
-    >
+    <form class="mx-auto mt-8 max-w-3xl rounded-2xl bg-surface p-8 shadow-raised" @submit.prevent="save">
       <p class="text-[11px] font-semibold tracking-wider text-accent uppercase">Étape 1 sur 4</p>
       <h1 class="mt-2 text-[28px] font-semibold">Décrivez votre mission</h1>
       <p class="mt-1 text-ink-muted">

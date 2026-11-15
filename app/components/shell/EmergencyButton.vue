@@ -4,12 +4,15 @@
  * Two-gesture confirmation to prevent accidental activation: tap opens a dialog,
  * then the user must hold the confirm button for HOLD_MS (pointer or keyboard).
  */
+import { useActions } from '#imports'
 import { Siren, X } from 'lucide-vue-next'
 
 defineOptions({ inheritAttrs: false })
 
 const HOLD_MS = 2000
 
+const { triggerEmergency } = useActions()
+const { t } = useI18n()
 const open = ref(false)
 const progress = ref(0)
 let startedAt = 0
@@ -20,7 +23,10 @@ function tick(now: number) {
   if (progress.value >= 1) {
     cancelHold()
     open.value = false
-    navigateTo('/urgence')
+    // Backend: the emergency is recorded, audited and queued first for the ground.
+    triggerEmergency()
+      .catch(() => null)
+      .finally(() => navigateTo('/urgence'))
     return
   }
   frame = requestAnimationFrame(tick)
@@ -48,7 +54,7 @@ onBeforeUnmount(cancelHold)
     @click="open = true"
   >
     <Siren :size="17" :stroke-width="2" aria-hidden="true" />
-    Urgence
+    {{ t('Urgence') }}
   </button>
 
   <Teleport to="body">
@@ -70,15 +76,17 @@ onBeforeUnmount(cancelHold)
           <button
             type="button"
             class="flex size-9 items-center justify-center rounded-md text-ink-muted hover:bg-subtle"
-            aria-label="Annuler"
+            :aria-label="t('Annuler')"
             @click="open = false"
           >
             <X :size="20" aria-hidden="true" />
           </button>
         </div>
-        <h2 id="emergency-title" class="mt-4 text-xl font-semibold">Déclencher le mode urgence ?</h2>
+        <h2 id="emergency-title" class="mt-4 text-xl font-semibold">
+          {{ t('Déclencher le mode urgence ?') }}
+        </h2>
         <p class="mt-1.5 text-sm text-ink-muted">
-          Tout l’équipage sera alerté et un paquet CRITICAL passera en tête de la file vers le sol.
+          {{ t('Tout l’équipage sera alerté et un paquet CRITICAL passera en tête de la file vers le sol.') }}
         </p>
         <button
           type="button"
@@ -94,11 +102,11 @@ onBeforeUnmount(cancelHold)
           <span class="absolute inset-y-0 left-0 bg-critical" :style="{ width: `${progress * 100}%` }" />
           <span class="relative flex items-center gap-2">
             <Siren :size="18" aria-hidden="true" />
-            Maintenir 2 secondes pour confirmer
+            {{ t('Maintenir 2 secondes pour confirmer') }}
           </span>
         </button>
         <p class="mt-3 text-center text-xs text-ink-muted">
-          Relâcher annule. Aucune action en un seul geste.
+          {{ t('Relâcher annule. Aucune action en un seul geste.') }}
         </p>
       </div>
     </div>

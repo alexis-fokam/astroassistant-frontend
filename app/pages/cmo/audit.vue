@@ -10,7 +10,6 @@ import {
   ShieldCheck,
 } from 'lucide-vue-next'
 import { LEVEL_HEX, LEVEL_STYLES } from '~/constants/levels'
-import { AUDIT_LOG, AUDIT_SUMMARY } from '~/mocks/audit'
 import { buildSeries } from '~/utils/series'
 
 /**
@@ -21,6 +20,7 @@ definePageMeta({ layout: 'app' })
 useHead({ title: 'Journal & rapports' })
 
 const { crew } = useMissionData()
+const { auditLog, auditSummary } = await useAuditScreen()
 
 const tab = ref('audit')
 const TABS = [
@@ -31,9 +31,13 @@ const TABS = [
 
 const query = ref('')
 const entries = computed(() =>
-  AUDIT_LOG.filter((entry) =>
-    `${entry.actor} ${entry.action} ${entry.object}`.toLowerCase().includes(query.value.trim().toLowerCase()),
-  ).map((entry) => ({ ...entry, icon: LEVEL_STYLES[entry.level].icon, ink: LEVEL_STYLES[entry.level].ink })),
+  auditLog.value
+    .filter((entry) =>
+      `${entry.actor} ${entry.action} ${entry.object}`
+        .toLowerCase()
+        .includes(query.value.trim().toLowerCase()),
+    )
+    .map((entry) => ({ ...entry, icon: LEVEL_STYLES[entry.level].icon, ink: LEVEL_STYLES[entry.level].ink })),
 )
 
 const reportCrew = ref('AV-02')
@@ -67,10 +71,10 @@ const reportTrend = buildSeries(28, 62, { noise: 4, drift: -12, seed: 81 })
       <ShieldCheck :size="24" class="text-nominal-ink" aria-hidden="true" />
       <div class="flex-1">
         <p class="font-semibold text-nominal-ink">
-          Intégrité de la chaîne vérifiée à {{ AUDIT_SUMMARY.verifiedAt }}
+          Intégrité de la chaîne vérifiée à {{ auditSummary.verifiedAt }}
         </p>
         <p class="text-sm text-ink-muted">
-          {{ AUDIT_SUMMARY.entries }} entrées · chaque entrée contient l’empreinte SHA-256 de la précédente ·
+          {{ auditSummary.entries }} entrées · chaque entrée contient l’empreinte SHA-256 de la précédente ·
           aucune modification possible
         </p>
       </div>

@@ -59,9 +59,28 @@ const clock = computed(() => {
 const progress = computed(() => (currentStep.value / protocol.value.steps.length) * 100)
 const isTimedStep = computed(() => protocol.value.steps[currentStep.value]?.timer === true)
 
-function completeStep() {
-  if (currentStep.value < protocol.value.steps.length - 1) currentStep.value += 1
-  else navigateTo('/equipage/protocoles/termine')
+// Backend run (F4.5): started when the player opens, each step validated in order.
+const { startRun, validateStep, finishRun } = useActions()
+const runId = ref<number | null>(null)
+onMounted(async () => {
+  const run = await startRun(protocol.value.code).catch(() => null)
+  if (!run) return
+  runId.value = run.id
+  // The player opens on step 2 (Figma frame): record the steps already shown as done.
+  for (const step of protocol.value.steps.slice(0, currentStep.value)) {
+    if (step.code) await validateStep(run.id, step.code).catch(() => null)
+  }
+})
+
+async function completeStep() {
+  const step = protocol.value.steps[currentStep.value]
+  if (runId.value && step?.code) await validateStep(runId.value, step.code).catch(() => null)
+  if (currentStep.value < protocol.value.steps.length - 1) {
+    currentStep.value += 1
+    return
+  }
+  if (runId.value) await finishRun(runId.value).catch(() => null)
+  await navigateTo('/equipage/protocoles/termine')
 }
 
 const liveHrv = buildSeries(30, 30, { noise: 1.5, drift: 7, seed: 31 })

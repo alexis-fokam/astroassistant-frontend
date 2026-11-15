@@ -41,14 +41,43 @@ const RANGES = [
   { value: 'mission', label: 'Mission' },
 ]
 
-// Cumulative mission dose (mSv) and projection to end of mission (J+200).
-const cumulativeDose = Array.from({ length: 72 }, (_, i) => 50 + i * 0.55)
-const doseProjection = Array.from({ length: 30 }, (_, i) => 89.1 + i * 2)
-// Dose rate (mSv/h): galactic background, then the SPE spike.
-const doseRate = [...buildSeries(50, 0.021, { noise: 0.004, seed: 41 }), 0.08, 0.3, 0.9, 1.5, 1.82]
+// Demo values (Figma frame), replaced by the dosimeter data when the backend answers.
+let cumulativeDose = Array.from({ length: 72 }, (_, i) => 50 + i * 0.55)
+let doseProjection = Array.from({ length: 30 }, (_, i) => 89.1 + i * 2)
+let doseRate = [...buildSeries(50, 0.021, { noise: 0.004, seed: 41 }), 0.08, 0.3, 0.9, 1.5, 1.82]
 
 const CAREER_LIMIT = 600
-const careerDose = 189
+let careerDose = 189
+
+interface ApiRadiation {
+  mission_cumulative_msv: number
+  career_cumulative_msv: number
+  projected_mission_end_msv: number
+  history: { dose_rate_msv_h: number; mission_cumulative_msv: number }[]
+}
+const { user, source } = useMissionData()
+const { api } = useApi()
+const { data: radiation } = await useAsyncData('dosimetry', async () => {
+  if (source !== 'api' || !user) return null
+  return api<ApiRadiation>(`/radiation/${user.code}`, { query: { hours: 72 } }).catch(() => null)
+})
+if (radiation.value) {
+  const r = radiation.value
+  // Real dosimeter (F5.1-F5.2): mission dose over 72 h, then a linear projection.
+  cumulativeDose = r.history.map((p) => p.mission_cumulative_msv)
+  const last = r.mission_cumulative_msv
+  doseProjection = Array.from(
+    { length: 30 },
+    (_, i) => last + ((r.projected_mission_end_msv - last) * (i + 1)) / 30,
+  )
+  doseRate = r.history.slice(-55).map((p) => p.dose_rate_msv_h)
+  careerDose = Math.round(r.career_cumulative_msv)
+}
+const fr = (value: number, digits = 0) =>
+  value.toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+const careerPct = fr((careerDose / CAREER_LIMIT) * 100, 1)
+const projectedEnd = fr(doseProjection.at(-1) ?? 0)
+const doseLabel = `Dose cumulée de ${fr(cumulativeDose[0] ?? 0)} à ${fr(cumulativeDose.at(-1) ?? 0)} mSv, projection à ${projectedEnd} mSv en fin de mission`
 const gaugeCircumference = 2 * Math.PI * 70
 
 const SPACE_WEATHER = [
@@ -141,7 +170,7 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
           :height="230"
           :min="40"
           :max="150"
-          label="Dose cumulée de 50 à 89 mSv, projection à 148 mSv en fin de mission"
+          :label="doseLabel"
         />
         <div class="mt-2 flex justify-between text-xs text-ink-muted">
           <span>J+0</span><span>J+50</span><span>J+100</span><span>Aujourd’hui</span><span>Fin J+200</span>
@@ -168,7 +197,7 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
             <span class="text-xs text-ink-muted">/ {{ CAREER_LIMIT }} mSv</span>
           </div>
         </div>
-        <p class="mt-2 text-center text-xs text-ink-muted">31,5 % de la limite NASA-STD-3001</p>
+        <p class="mt-2 text-center text-xs text-ink-muted">{{ careerPct }} % de la limite NASA-STD-3001</p>
         <dl class="mt-4 space-y-2 border-t border-divider pt-4 text-sm">
           <div class="flex justify-between">
             <dt class="text-ink-muted">Dose mission</dt>
@@ -180,7 +209,7 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
           </div>
           <div class="flex justify-between">
             <dt class="text-ink-muted">Projection fin de mission</dt>
-            <dd class="font-semibold tabular">148 mSv</dd>
+            <dd class="font-semibold tabular">{{ projectedEnd }} mSv</dd>
           </div>
         </dl>
       </UiCard>

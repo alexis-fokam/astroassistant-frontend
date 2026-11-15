@@ -13,7 +13,7 @@ import {
   UserRound,
 } from 'lucide-vue-next'
 import { LEVEL_HEX } from '~/constants/levels'
-import { INVENTORY, INVENTORY_SUMMARY, type InventoryRow } from '~/mocks/inventory'
+import type { InventoryRow } from '~/mocks/inventory'
 
 /**
  * Page M-06: on-board pharmacy (spec F11, Figma "M-06 · Pharmacie & kit médical").
@@ -22,6 +22,8 @@ import { INVENTORY, INVENTORY_SUMMARY, type InventoryRow } from '~/mocks/invento
 definePageMeta({ layout: 'app' })
 useHead({ title: 'Pharmacie de bord' })
 
+const { inventory, summary } = await usePharmacyScreen()
+
 const kit = ref('all')
 const KITS = [
   { value: 'all', label: 'Tout' },
@@ -29,7 +31,7 @@ const KITS = [
   { value: 'module-b', label: 'Module B' },
 ]
 
-const visible = computed(() => INVENTORY.filter((row) => kit.value === 'all' || row.kit === kit.value))
+const visible = computed(() => inventory.value.filter((row) => kit.value === 'all' || row.kit === kit.value))
 
 const groups = computed(() =>
   (
@@ -42,7 +44,7 @@ const groups = computed(() =>
     const rows = visible.value.filter((row) => row.group === group.key)
     const count =
       group.key === 'ok'
-        ? `${INVENTORY_SUMMARY.inStock} articles · ${rows.length} affichés`
+        ? `${summary.value.inStock} articles · ${rows.length} affichés`
         : `${rows.length} article${rows.length > 1 ? 's' : ''}`
     return { ...group, rows, count }
   }),
@@ -67,23 +69,23 @@ function barClass(row: InventoryRow) {
     </UiPageHeader>
 
     <section aria-label="Indicateurs" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <DashboardKpiCard label="Articles suivis" :icon="Box" :value="String(INVENTORY_SUMMARY.tracked)" />
+      <DashboardKpiCard label="Articles suivis" :icon="Box" :value="String(summary.tracked)" />
       <DashboardKpiCard
         label="Stock bas"
         :icon="TriangleAlert"
-        :value="String(INVENTORY_SUMMARY.lowStock)"
+        :value="String(summary.lowStock)"
         level="warning"
       />
       <DashboardKpiCard
         label="Péremption < 60 j"
         :icon="Timer"
-        :value="String(INVENTORY_SUMMARY.expiringSoon)"
+        :value="String(summary.expiringSoon)"
         level="warning"
       />
       <DashboardKpiCard
         label="Ruptures"
         :icon="OctagonAlert"
-        :value="String(INVENTORY_SUMMARY.outOfStock)"
+        :value="String(summary.outOfStock)"
         level="critical"
       />
     </section>

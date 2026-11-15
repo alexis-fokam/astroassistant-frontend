@@ -52,6 +52,8 @@ export interface Alert {
 }
 
 export interface ProtocolStep {
+  /** Step code in the protocol YAML (validated through the API). */
+  code?: string
   title: string
   minutes: number
   /** Step shows a countdown timer in the protocol player. */

@@ -20,11 +20,12 @@ import { LEVEL_STYLES } from '~/constants/levels'
 import type { Level } from '~/types/domain'
 
 /**
- * Pages D-01 / D-02: jury demo panel (spec F15, Figma "D-01/D-02 · Simulation jury").
- * Injects scenarios S1-S6, accelerates time (x1 to x1000) with a fixed seed.
+ * Pages D-01 / D-02 : panneau de démo jury (cahier des charges F15, Figma « D-01/D-02 »).
+ * Injecte les scénarios S1-S6 et accélère le temps (×1 à ×1000) avec une graine fixe.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Simulation & démo jury' })
+const { t } = useI18n()
+useHead({ title: () => t('Simulation & démo jury') })
 
 const { scenarios, crew } = useMissionData()
 
@@ -37,35 +38,135 @@ const SCENARIO_ICONS: Record<string, Component[]> = {
   S6: [RadioTower, Send],
 }
 
-// Template-ready scenario cards (icons and expected-level label resolved once).
-const scenarioCards = scenarios.map((scenario) => ({
-  ...scenario,
-  icons: SCENARIO_ICONS[scenario.code] ?? [],
-  expectedLabel: `Attendu : ${LEVEL_STYLES[scenario.expected].label}`,
-}))
+// Cartes de scénario prêtes pour le gabarit (icônes et libellé du niveau attendu, traduits).
+const scenarioCards = computed(() =>
+  scenarios.map((scenario) => ({
+    ...scenario,
+    icons: SCENARIO_ICONS[scenario.code] ?? [],
+    expectedLabel: t('Attendu : {level}', { level: LEVEL_STYLES[scenario.expected].label }),
+  })),
+)
 
-const runningScenario = ref('S3')
-const runningElapsed = ref(72)
+const { api } = useApi()
+// Une ref : le compilateur de gabarit déballe les refs, pas les constantes des composables.
+const isLive = ref(useMissionData().source === 'api')
+
+interface SimEvent {
+  at: string
+  kind: string
+  message: string
+}
+interface SimState {
+  running: boolean
+  run_id: number | null
+  scenario: string | null
+  speed_factor: number
+  sim_time: string | null
+  ticks: number
+  effects: { anomaly: string; label: string; crew: string[]; strength: number; expected_rules: string[] }[]
+  events: SimEvent[]
+}
+interface AnomalyOption {
+  code: string
+  label: string
+  description: string
+  expected_rules: string[]
+}
+
+const simState = ref<SimState | null>(null)
+const anomalies = ref<AnomalyOption[]>([])
+const injectCrew = ref('AV-03')
+const actionError = ref<string | null>(null)
+
+const runningScenario = ref<string | null>(isLive.value ? null : 'S3')
+const runningElapsed = ref(isLive.value ? 0 : 72)
 let timer: ReturnType<typeof setInterval> | undefined
-onMounted(() => {
+let poller: ReturnType<typeof setInterval> | undefined
+
+async function refreshState() {
+  if (!isLive.value) return
+  try {
+    simState.value = await api<SimState>('/sim/state')
+    if (simState.value.running) runningScenario.value = simState.value.scenario
+  } catch {
+    /* serveur en redémarrage : le prochain sondage réessaie */
+  }
+}
+
+onMounted(async () => {
   timer = setInterval(() => (runningElapsed.value += 1), 1000)
+  if (!isLive.value) return
+  anomalies.value = await api<AnomalyOption[]>('/sim/anomalies').catch(() => [])
+  await refreshState()
+  poller = setInterval(refreshState, 2000)
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(() => {
+  clearInterval(timer)
+  clearInterval(poller)
+})
 const runningClock = computed(
   () =>
     `${String(Math.floor(runningElapsed.value / 60)).padStart(2, '0')}:${String(runningElapsed.value % 60).padStart(2, '0')}`,
 )
 
-function inject(code: string) {
+async function inject(code: string) {
   runningScenario.value = code
   runningElapsed.value = 0
+  if (!isLive.value) return
+  actionError.value = null
+  try {
+    await api('/sim/scenario', { method: 'POST', body: { code, speed_factor: speed.value } })
+    playing.value = true
+    await refreshState()
+  } catch (e) {
+    actionError.value = t((e as Error).message)
+  }
 }
 
-// Time acceleration on a log scale: slider 0-3 maps to x1, x10, x100, x1000 (spec F15.2).
+async function injectAnomaly(code: string) {
+  actionError.value = null
+  try {
+    if (!simState.value?.run_id) {
+      await api('/sim/scenario', { method: 'POST', body: { code: 'S1', speed_factor: speed.value } })
+      runningScenario.value = 'S1'
+    }
+    await api('/sim/inject', { method: 'POST', body: { anomaly: code, crew_code: injectCrew.value } })
+    await refreshState()
+  } catch (e) {
+    actionError.value = t((e as Error).message)
+  }
+}
+
+async function stopRun() {
+  const id = simState.value?.run_id
+  if (isLive.value && id) await api(`/sim/runs/${id}/stop`, { method: 'POST' }).catch(() => undefined)
+  runningScenario.value = null
+  playing.value = false
+  await refreshState()
+}
+
+async function togglePlay() {
+  if (playing.value) return stopRun()
+  await inject(simState.value?.scenario ?? 'S1')
+}
+
+// Accélération du temps en échelle log : le curseur 0-3 donne ×1, ×10, ×100, ×1000 (F15.2).
 const speedExponent = ref(Math.log10(240))
 const speed = computed(() => Math.round(10 ** speedExponent.value))
 const simulatedDayMinutes = computed(() => Math.max(1, Math.round((24 * 60) / speed.value)))
-const playing = ref(true)
+const playing = ref(!isLive.value)
+
+// Applique la vitesse à la simulation en cours (anti-rebond : le curseur bouge en continu).
+let speedTimer: ReturnType<typeof setTimeout> | undefined
+watch(speed, (value) => {
+  clearTimeout(speedTimer)
+  speedTimer = setTimeout(() => {
+    const id = simState.value?.run_id
+    if (isLive.value && id && simState.value?.running) {
+      api('/sim/speed', { method: 'POST', body: { run_id: id, speed_factor: value } }).catch(() => undefined)
+    }
+  }, 400)
+})
 
 interface VirtualMember {
   code: string
@@ -75,7 +176,7 @@ interface VirtualMember {
   enabled: boolean
 }
 
-// Simulated crew members (spec F15.1); AV-05 is a free slot.
+// Membres simulés (F15.1) ; AV-05 est une place libre.
 const virtualCrew = ref<VirtualMember[]>([
   ...crew.map((member) => ({
     code: member.code,
@@ -87,7 +188,7 @@ const virtualCrew = ref<VirtualMember[]>([
   { code: 'AV-05', name: 'libre', initials: '+', enabled: false },
 ])
 
-const ENGINE_LOG = (
+const DEMO_LOG = (
   [
     { time: '14:05:32', level: 'critical', message: 'alert.created AV-02 radiation CRITICAL' },
     { time: '14:05:31', level: 'info', message: 'ws.push telemetry batch=24 · 38 ms' },
@@ -97,28 +198,111 @@ const ENGINE_LOG = (
     { time: '14:04:58', level: 'nominal', message: 'protocol.run PRT-STRESS-01 step 1' },
   ] satisfies { time: string; level: Level; message: string }[]
 ).map((line) => ({ ...line, icon: LEVEL_STYLES[line.level].icon, ink: LEVEL_STYLES[line.level].ink }))
+
+function eventLevel(event: SimEvent): Level {
+  if (event.message.startsWith('CRITICAL')) return 'critical'
+  if (event.message.startsWith('WARNING') || event.kind === 'inject') return 'warning'
+  return 'info'
+}
+
+// Journal moteur en direct du simulateur, journal de démo si le serveur est injoignable.
+const ENGINE_LOG = computed(() =>
+  isLive.value && simState.value
+    ? simState.value.events.map((event, index) => {
+        const level = eventLevel(event)
+        return {
+          key: `${event.at}-${index}`,
+          time: event.at.slice(11, 19),
+          message: event.message,
+          icon: LEVEL_STYLES[level].icon,
+          ink: LEVEL_STYLES[level].ink,
+        }
+      })
+    : DEMO_LOG.map((line) => ({ ...line, key: line.time })),
+)
+
+const simClock = computed(() => {
+  const time = simState.value?.sim_time
+  return time ? `${time.slice(0, 10)} ${time.slice(11, 16)} UTC` : '—'
+})
 </script>
 
 <template>
   <div class="space-y-6">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 class="text-[28px] font-semibold">Simulation & démo jury</h1>
+        <h1 class="text-[28px] font-semibold">{{ t('Simulation & démo jury') }}</h1>
         <p class="mt-0.5 text-sm text-ink-muted">
-          Données simulées, aucun capteur réel · rejouez les scénarios de référence
+          {{ t('Données simulées, aucun capteur réel · rejouez les scénarios de référence') }}
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
         <UiButton variant="secondary" size="sm" :icon="Code" to="http://localhost:8000/docs"
           >Swagger /docs</UiButton
         >
-        <UiButton variant="secondary" size="sm" :icon="RefreshCw">Réinitialiser</UiButton>
-        <UiButton variant="ai" size="sm" :icon="Sparkles" to="/simulation?visite=1">Visite guidée</UiButton>
+        <UiButton variant="secondary" size="sm" :icon="RefreshCw">{{ t('Réinitialiser') }}</UiButton>
+        <UiButton variant="ai" size="sm" :icon="Sparkles" to="/simulation?visite=1">{{
+          t('Visite guidée')
+        }}</UiButton>
       </div>
     </div>
 
-    <!-- Scenarios S1-S6 (spec §4.1, F15.3) -->
-    <section aria-label="Scénarios" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <p
+      v-if="actionError"
+      class="rounded-lg bg-critical-soft px-4 py-2 text-sm text-critical-ink"
+      role="alert"
+    >
+      {{ actionError }}
+    </p>
+
+    <!-- Injection d'anomalie en direct : l'IA doit la détecter en quelques secondes -->
+    <UiCard v-if="isLive" :title="t('Injecter une anomalie en direct')" :icon="Activity">
+      <template #actions>
+        <span class="text-xs text-ink-muted">
+          {{ t('Horloge simulée') }} · {{ simClock }} · ×{{ simState?.speed_factor ?? speed }} ·
+          {{ simState?.ticks ?? 0 }} {{ t('mesures') }}
+        </span>
+      </template>
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="text-sm text-ink-muted" for="inject-crew">{{ t('Astronaute') }}</label>
+        <select
+          id="inject-crew"
+          v-model="injectCrew"
+          class="h-9 rounded-lg border border-line bg-surface px-3 text-sm"
+        >
+          <option v-for="member in crew" :key="member.code" :value="member.code">
+            {{ member.code }} · {{ member.firstName }} {{ member.lastName }}
+          </option>
+          <option value="all">{{ t('Tout l’équipage') }}</option>
+        </select>
+      </div>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <button
+          v-for="option in anomalies"
+          :key="option.code"
+          type="button"
+          class="rounded-xl border border-divider bg-surface p-3 text-left transition-colors hover:border-primary hover:bg-primary-soft"
+          @click="injectAnomaly(option.code)"
+        >
+          <span class="block text-sm font-semibold">{{ t(option.label) }}</span>
+          <span class="mt-1 block text-xs text-ink-muted">{{ t(option.description) }}</span>
+          <span class="mt-2 block font-mono text-[11px] text-primary"
+            >→ {{ option.expected_rules.join(' · ') }}</span
+          >
+        </button>
+      </div>
+      <ul v-if="simState?.effects.length" class="mt-4 space-y-1 text-sm">
+        <li v-for="effect in simState.effects" :key="`${effect.anomaly}-${effect.crew.join()}`">
+          <span class="font-medium">{{ t(effect.label) }}</span>
+          <span class="text-ink-muted">
+            · {{ effect.crew.join(', ') }} · {{ t('intensité') }} {{ Math.round(effect.strength * 100) }} %</span
+          >
+        </li>
+      </ul>
+    </UiCard>
+
+    <!-- Scénarios S1-S6 (cahier des charges §4.1, F15.3) -->
+    <section :aria-label="t('Scénarios')" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <article
         v-for="scenario in scenarioCards"
         :key="scenario.code"
@@ -133,8 +317,8 @@ const ENGINE_LOG = (
           }}</span>
           <UiStatusBadge :level="scenario.expected" :label="scenario.expectedLabel" />
         </div>
-        <h2 class="mt-4 font-semibold">{{ scenario.name }}</h2>
-        <p class="mt-1 flex-1 text-sm text-ink-muted">{{ scenario.description }}</p>
+        <h2 class="mt-4 font-semibold">{{ t(scenario.name) }}</h2>
+        <p class="mt-1 flex-1 text-sm text-ink-muted">{{ t(scenario.description) }}</p>
         <div class="mt-4 flex items-center justify-between">
           <span class="flex gap-1.5 text-ink-muted">
             <component
@@ -145,21 +329,27 @@ const ENGINE_LOG = (
               aria-hidden="true"
             />
           </span>
-          <UiButton v-if="runningScenario === scenario.code" variant="danger" size="sm" :icon="Pause">
-            En cours · {{ runningClock }}
+          <UiButton
+            v-if="runningScenario === scenario.code"
+            variant="danger"
+            size="sm"
+            :icon="Pause"
+            @click="stopRun"
+          >
+            {{ t('En cours') }} · {{ runningClock }}
           </UiButton>
           <UiButton v-else variant="secondary" size="sm" :icon="Play" @click="inject(scenario.code)"
-            >Injecter</UiButton
+            >{{ t('Injecter') }}</UiButton
           >
         </div>
       </article>
     </section>
 
     <div id="controle" class="grid gap-6 lg:grid-cols-3">
-      <UiCard title="Accélération du temps" :icon="Timer">
+      <UiCard :title="t('Accélération du temps')" :icon="Timer">
         <div class="flex items-baseline justify-between">
           <p class="font-display text-3xl font-semibold text-primary tabular">×{{ speed }}</p>
-          <p class="text-xs text-ink-muted">1 jour simulé = {{ simulatedDayMinutes }} min</p>
+          <p class="text-xs text-ink-muted">{{ t('1 jour simulé = {n} min', { n: simulatedDayMinutes }) }}</p>
         </div>
         <UiSlider
           v-model="speedExponent"
@@ -167,29 +357,29 @@ const ENGINE_LOG = (
           :min="0"
           :max="3"
           :step="0.01"
-          label="Accélération du temps"
-          :value-text="`fois ${speed}`"
+          :label="t('Accélération du temps')"
+          :value-text="t('fois {n}', { n: speed })"
         />
         <div class="flex justify-between text-xs text-ink-muted">
           <span>×1</span><span>×10</span><span>×100</span><span>×1000</span>
         </div>
         <div class="mt-4 flex gap-2">
-          <UiButton class="flex-1" :icon="playing ? Pause : Play" @click="playing = !playing">
-            {{ playing ? 'Pause' : 'Lecture' }}
+          <UiButton class="flex-1" :icon="playing ? Pause : Play" @click="togglePlay">
+            {{ t(playing ? 'Pause' : 'Lecture') }}
           </UiButton>
         </div>
       </UiCard>
 
-      <UiCard title="Équipage virtuel" :icon="Users">
+      <UiCard :title="t('Équipage virtuel')" :icon="Users">
         <ul class="space-y-2.5">
           <li v-for="member in virtualCrew" :key="member.code" class="flex items-center gap-3">
             <UiAvatar :initials="member.initials" :tone="member.tone" :size="28" />
-            <span class="flex-1 text-sm">{{ member.code }} · {{ member.name }}</span>
+            <span class="flex-1 text-sm">{{ member.code }} · {{ t(member.name) }}</span>
             <button
               type="button"
               role="switch"
               :aria-checked="member.enabled"
-              :aria-label="`Simuler ${member.code}`"
+              :aria-label="t('Simuler {code}', { code: member.code })"
               class="flex h-6 w-11 items-center rounded-full p-0.5 transition-colors"
               :class="member.enabled ? 'justify-end bg-primary' : 'bg-line'"
               @click="member.enabled = !member.enabled"
@@ -199,21 +389,24 @@ const ENGINE_LOG = (
           </li>
         </ul>
         <p class="mt-4 flex items-center justify-between border-t border-divider pt-3 text-sm text-ink-muted">
-          Graine aléatoire
+          {{ t('Graine aléatoire') }}
           <span class="rounded-full bg-subtle px-2.5 py-0.5 font-mono text-xs text-ink">seed = 42</span>
         </p>
       </UiCard>
 
-      <UiCard title="Journal moteur en direct" :icon="Code">
+      <UiCard :title="t('Journal moteur en direct')" :icon="Code">
         <template #actions>
           <span
             class="flex items-center gap-1.5 rounded-full bg-nominal-soft px-2.5 py-1 text-xs font-semibold text-nominal-ink"
           >
-            <span class="size-1.5 rounded-full bg-nominal" /> WS connecté
+            <span class="size-1.5 rounded-full bg-nominal" /> {{ t('WS connecté') }}
           </span>
         </template>
         <ul class="space-y-2 rounded-xl bg-subtle p-3 font-mono text-xs" aria-live="polite">
-          <li v-for="line in ENGINE_LOG" :key="line.time" class="flex items-center gap-2">
+          <li v-if="ENGINE_LOG.length === 0" class="text-ink-muted">
+            {{ t('Lancez un scénario ou injectez une anomalie : le moteur IA réagit ici en direct.') }}
+          </li>
+          <li v-for="line in ENGINE_LOG" :key="line.key" class="flex items-center gap-2">
             <span class="text-ink-muted">{{ line.time }}</span>
             <component :is="line.icon" :size="13" :class="line.ink" aria-hidden="true" />
             <span class="truncate">{{ line.message }}</span>
