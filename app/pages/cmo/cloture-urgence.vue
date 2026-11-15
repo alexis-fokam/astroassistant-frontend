@@ -23,6 +23,30 @@ import type { Component } from 'vue'
 definePageMeta({ layout: 'app' })
 useHead({ title: 'Clôturer l’urgence' })
 
+const { activeEmergency, closeEmergency } = useActions()
+const { data: emergency } = await useAsyncData('closing-emergency', () => activeEmergency().catch(() => null))
+const closeError = ref<string | null>(null)
+
+const OUTCOME_LABELS: Record<string, string> = {
+  stabilised: 'stabilisée',
+  monitoring: 'surveillance rapprochée',
+  evacuation: 'évacuation demandée',
+}
+
+async function close() {
+  closeError.value = null
+  try {
+    if (emergency.value) {
+      const done = actions.value.filter((a) => a.done).map((a) => a.label)
+      const summary = `${notes.value}\n\nGestes réalisés : ${done.join(', ')}.`
+      await closeEmergency(emergency.value.id, OUTCOME_LABELS[outcome.value]!, summary)
+    }
+    await navigateTo('/sol')
+  } catch (e) {
+    closeError.value = (e as Error).message
+  }
+}
+
 const outcome = ref('stabilised')
 const OUTCOMES = [
   { value: 'stabilised', label: 'Stabilisée' },
@@ -209,7 +233,8 @@ const TIMELINE: { time: string; text: string; icon: Component; dot: string; ink:
     </div>
 
     <div class="flex flex-wrap gap-3">
-      <UiButton variant="danger" :icon="Send" to="/sol">Clôturer et transmettre au sol</UiButton>
+      <p v-if="closeError" class="text-sm text-critical-ink" role="alert">{{ closeError }}</p>
+      <UiButton variant="danger" :icon="Send" @click="close">Clôturer et transmettre au sol</UiButton>
       <UiButton variant="secondary">Enregistrer le brouillon</UiButton>
     </div>
   </div>

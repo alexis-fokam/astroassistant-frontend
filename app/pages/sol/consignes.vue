@@ -8,7 +8,9 @@ import { Check, CircleCheck, Download, FileText, Info, ShieldCheck } from 'lucid
 definePageMeta({ layout: 'app' })
 useHead({ title: 'Importer des consignes du sol' })
 
-const { findCrew } = useMissionData()
+const { findCrew, crew, mission, source } = useMissionData()
+const { api } = useApi()
+const isLive = ref(source === 'api')
 
 const CHECKS = [
   { title: 'Fichier reçu', detail: 'consignes_J142_1702.json.gz · 6 Ko' },
@@ -17,25 +19,83 @@ const CHECKS = [
   { title: 'Destinataires reconnus', detail: 'AV-02 Léo Martin · AV-04 Kenji Arai' },
 ]
 
-type InstructionState = 'pending' | 'imported' | 'ignored'
+type InstructionState = 'pending' | 'imported' | 'ignored' | 'transit'
 
-const instructions = ref([
-  {
-    id: 1,
-    crew: 'AV-02',
-    text: 'Prolonger la fenêtre de sommeil de 45 min pendant 3 nuits. Refaire un PVT avant l’EVA de J+143.',
-    state: 'pending' as InstructionState,
-  },
-  {
-    id: 2,
-    crew: 'AV-04',
-    text: 'OCT au prochain créneau, transmettre les images au prochain contact.',
-    state: 'pending' as InstructionState,
-  },
-])
+const instructions = ref<{ id: number; crew: string; text: string; state: InstructionState; eta?: string }[]>(
+  [
+    {
+      id: 1,
+      crew: 'AV-02',
+      text: 'Prolonger la fenêtre de sommeil de 45 min pendant 3 nuits. Refaire un PVT avant l’EVA de J+143.',
+      state: 'pending' as InstructionState,
+    },
+    {
+      id: 2,
+      crew: 'AV-04',
+      text: 'OCT au prochain créneau, transmettre les images au prochain contact.',
+      state: 'pending' as InstructionState,
+    },
+  ],
+)
 
 const fileInput = ref<HTMLInputElement>()
 const dragging = ref(false)
+
+interface ApiInstruction {
+  id: number
+  crew_code: string | null
+  subject: string | null
+  body: string
+  sent_at: string | null
+  received_at: string
+  in_transit: boolean
+}
+
+// Ground → crew channel (spec, ground dashboard S1): the instruction reaches the crew only
+// after the one-way delay of the mission (12 min for a Mars transit).
+async function loadInstructions() {
+  if (!isLive.value) return
+  try {
+    const rows = await api<ApiInstruction[]>('/ground/instructions')
+    instructions.value = rows
+      .filter((row) => row.crew_code)
+      .map((row) => ({
+        id: row.id,
+        crew: row.crew_code!,
+        text: `${row.subject ? `${row.subject} — ` : ''}${row.body}`,
+        state: (row.in_transit ? 'transit' : 'imported') as InstructionState,
+        eta: row.received_at.slice(11, 16),
+      }))
+  } catch {
+    /* keep the demo list */
+  }
+}
+
+const draft = ref({ crew_code: 'AV-02', subject: '', body: '' })
+const sending = ref(false)
+const sendError = ref<string | null>(null)
+
+async function sendInstruction() {
+  if (!draft.value.body.trim() || !draft.value.subject.trim()) return
+  sending.value = true
+  sendError.value = null
+  try {
+    await api('/ground/instructions', { method: 'POST', body: { ...draft.value } })
+    draft.value = { ...draft.value, subject: '', body: '' }
+    await loadInstructions()
+  } catch (e) {
+    sendError.value = (e as Error).message
+  } finally {
+    sending.value = false
+  }
+}
+
+let poller: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  loadInstructions()
+  poller = setInterval(loadInstructions, 5000)
+})
+onBeforeUnmount(() => clearInterval(poller))
 
 function importAll() {
   instructions.value.forEach((instruction) => {
@@ -102,6 +162,45 @@ function importAll() {
         </UiCard>
       </div>
 
+      <UiCard v-if="isLive" title="Envoyer une consigne au vaisseau" :icon="Info">
+        <p class="text-sm text-ink-muted">
+          Délai de communication actuel : {{ mission.latencyMin }} min aller. La consigne arrive à bord après
+          ce délai.
+        </p>
+        <form class="mt-4 grid gap-3" @submit.prevent="sendInstruction">
+          <div class="grid gap-3 sm:grid-cols-[200px_1fr]">
+            <select
+              v-model="draft.crew_code"
+              class="h-10 rounded-lg border border-line bg-surface px-3 text-sm"
+            >
+              <option v-for="member in crew" :key="member.code" :value="member.code">
+                {{ member.code }} · {{ member.firstName }} {{ member.lastName }}
+              </option>
+            </select>
+            <input
+              v-model="draft.subject"
+              required
+              maxlength="160"
+              placeholder="Objet"
+              class="h-10 rounded-lg border border-line bg-surface px-3 text-sm"
+            />
+          </div>
+          <textarea
+            v-model="draft.body"
+            required
+            rows="3"
+            placeholder="Consigne médicale…"
+            class="rounded-lg border border-line bg-surface p-3 text-sm"
+          />
+          <div class="flex items-center justify-between gap-3">
+            <p v-if="sendError" class="text-sm text-critical-ink" role="alert">{{ sendError }}</p>
+            <UiButton class="ml-auto" :icon="Check" type="submit" :disabled="sending">
+              Envoyer au vaisseau
+            </UiButton>
+          </div>
+        </form>
+      </UiCard>
+
       <section aria-labelledby="instructions-title" class="space-y-4">
         <div class="flex items-center justify-between">
           <h2 id="instructions-title" class="text-xl font-semibold">
@@ -128,7 +227,13 @@ function importAll() {
           </div>
           <p class="mt-3">{{ instruction.text }}</p>
           <div class="mt-4 flex items-center gap-2">
-            <template v-if="instruction.state === 'pending'">
+            <span
+              v-if="instruction.state === 'transit'"
+              class="rounded-full bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning-ink"
+            >
+              En route · arrivée à bord à {{ instruction.eta }} UTC
+            </span>
+            <template v-else-if="instruction.state === 'pending'">
               <UiButton size="sm" :icon="Check" @click="instruction.state = 'imported'">Importer</UiButton>
               <UiButton size="sm" variant="ghost" @click="instruction.state = 'ignored'">Ignorer</UiButton>
             </template>

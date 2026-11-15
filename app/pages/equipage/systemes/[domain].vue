@@ -2,7 +2,6 @@
 import { Cpu, Download, SlidersHorizontal } from 'lucide-vue-next'
 import { DOMAIN_KEYS, DOMAINS } from '~/constants/domains'
 import { LEVEL_HEX, LEVEL_STYLES } from '~/constants/levels'
-import { SYSTEMS } from '~/mocks/systems'
 import type { Domain } from '~/types/domain'
 import { levelFromScore } from '~/utils/health'
 
@@ -16,7 +15,7 @@ const route = useRoute()
 const { currentCrew, currentExplanation } = useMissionData()
 
 const domain = computed(() => route.params.domain as Domain)
-const detail = computed(() => SYSTEMS[domain.value])
+const { detail } = await useSystemScreen(domain)
 const score = computed(() => currentCrew.domains[domain.value])
 const level = computed(() => levelFromScore(score.value))
 

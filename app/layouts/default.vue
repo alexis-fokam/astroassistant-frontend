@@ -2,6 +2,8 @@
 import { Code, Github, Play, Rocket } from 'lucide-vue-next'
 import { API_DOCS_URL, FOOTER_COLUMNS, REPOSITORY_URL, SITE_LINKS } from '~/constants/site'
 
+const { t } = useI18n()
+
 // Public website shell (Figma P-02, P-03): top navigation and dark footer.
 const route = useRoute()
 const language = ref('fr')
@@ -14,23 +16,30 @@ const LANGUAGES = [
 <template>
   <div class="flex min-h-dvh flex-col bg-surface">
     <header class="sticky top-0 z-30 border-b border-divider bg-surface/90 backdrop-blur">
-      <div class="mx-auto flex h-16 max-w-6xl items-center gap-6 px-6">
+      <div class="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6">
         <BrandLogo />
         <nav aria-label="Site" class="ml-4 hidden items-center gap-1 lg:flex">
           <NuxtLink
             v-for="link in SITE_LINKS"
             :key="link.to"
             :to="link.to"
-            class="rounded-md px-3 py-2 text-sm font-medium transition-colors"
+            class="rounded-md px-2.5 py-2 text-sm font-medium whitespace-nowrap transition-colors"
             :class="route.path === link.to ? 'text-primary' : 'text-ink hover:text-primary'"
             :aria-current="route.path === link.to ? 'page' : undefined"
           >
-            {{ link.label }}
+            {{ t(link.label) }}
           </NuxtLink>
         </nav>
         <div class="ml-auto flex items-center gap-2">
-          <UiButton variant="ghost" size="sm" :icon="Code" :to="API_DOCS_URL" class="hidden md:inline-flex">
-            Docs API
+          <UiLanguageSwitch />
+          <UiButton
+            variant="ghost"
+            size="sm"
+            :icon="Code"
+            :to="API_DOCS_URL"
+            class="hidden whitespace-nowrap xl:inline-flex"
+          >
+            {{ t('Docs API') }}
           </UiButton>
           <UiButton
             variant="secondary"
@@ -41,7 +50,9 @@ const LANGUAGES = [
           >
             GitHub
           </UiButton>
-          <UiButton variant="ai" size="sm" :icon="Play" to="/simulation">Lancer la démo</UiButton>
+          <UiButton variant="ai" size="sm" :icon="Play" to="/simulation" class="whitespace-nowrap">
+            {{ t('Lancer la démo') }}
+          </UiButton>
         </div>
       </div>
     </header>
@@ -58,17 +69,17 @@ const LANGUAGES = [
             <BrandMark :size="28" /> Astro Assistant
           </span>
           <p class="max-w-xs text-sm text-white/70">
-            Le médecin de bord intelligent, 100 % hors ligne, conçu pour les missions longue durée.
+            {{ t('Le médecin de bord intelligent, 100 % hors ligne, conçu pour les missions longue durée.') }}
           </p>
           <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">
             <Rocket :size="13" aria-hidden="true" /> NASA Space Apps Challenge 2026
           </span>
         </div>
         <nav v-for="column in FOOTER_COLUMNS" :key="column.title" :aria-label="column.title">
-          <p class="text-sm font-semibold">{{ column.title }}</p>
+          <p class="text-sm font-semibold">{{ t(column.title) }}</p>
           <ul class="mt-4 space-y-2.5 text-sm text-white/70">
             <li v-for="link in column.links" :key="link.label">
-              <NuxtLink :to="link.to" class="hover:text-white">{{ link.label }}</NuxtLink>
+              <NuxtLink :to="link.to" class="hover:text-white">{{ t(link.label) }}</NuxtLink>
             </li>
           </ul>
         </nav>

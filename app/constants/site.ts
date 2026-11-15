@@ -9,7 +9,7 @@ export const SITE_LINKS = [
 ]
 
 export const API_DOCS_URL = 'http://localhost:8000/docs'
-export const REPOSITORY_URL = 'https://github.com/'
+export const REPOSITORY_URL = 'https://github.com/alexis-fokam/astroassistant-backend'
 
 export const FOOTER_COLUMNS = [
   {

@@ -11,10 +11,19 @@ definePageMeta({ layout: 'bare' })
 useHead({ title: 'Mode urgence' })
 
 const { findCrew, findProtocol } = useMissionData()
-const patient = findCrew('AV-03')!
+const { activeEmergency, emergencyStep } = useActions()
+const { data: emergency } = await useAsyncData('active-emergency', () => activeEmergency().catch(() => null))
+const patient = findCrew(emergency.value?.patient_code ?? 'AV-03') ?? findCrew('AV-03')!
 const firstAid = findProtocol('EMRG-01')!
 
-const currentStep = ref(2)
+const currentStep = ref(emergency.value ? Math.min(emergency.value.steps.length, 4) : 2)
+
+/** Next first-aid step: recorded on the emergency (F12) before moving on. */
+function nextStep() {
+  const step = firstAid.steps[currentStep.value]
+  if (emergency.value && step?.code) emergencyStep(emergency.value.id, step.code).catch(() => undefined)
+  currentStep.value = Math.min(currentStep.value + 1, steps.value.length - 1)
+}
 const elapsed = ref(4 * 60 + 27)
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
@@ -109,13 +118,7 @@ const heartRate = buildSeries(48, 122, { noise: 5, drift: 8, seed: 51 })
           </li>
         </ol>
         <div class="mt-6 flex gap-3">
-          <UiButton
-            size="lg"
-            :icon="Check"
-            @click="currentStep = Math.min(currentStep + 1, steps.length - 1)"
-          >
-            Étape suivante
-          </UiButton>
+          <UiButton size="lg" :icon="Check" @click="nextStep"> Étape suivante </UiButton>
           <UiButton size="lg" variant="secondary" @click="currentStep = Math.max(currentStep - 1, 0)">
             Étape précédente
           </UiButton>

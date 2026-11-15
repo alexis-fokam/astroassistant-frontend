@@ -72,6 +72,28 @@ const scales = reactive<Record<(typeof SCALES)[number]['id'], number>>({
 })
 
 const note = ref('')
+const { submitCheckin } = useActions()
+const submitError = ref<string | null>(null)
+
+/** Send the check-in (F3); the risk engine reads it at its next pass. */
+async function submit() {
+  submitError.value = null
+  try {
+    const body: Record<string, number | string | null> = {
+      duration_seconds: elapsedSeconds,
+      notes: note.value.trim() || null,
+    }
+    for (const [key, value] of Object.entries(symptoms)) {
+      // Isolation is a 0-10 feeling in the API; the screen rates it like a symptom (0-3).
+      body[key] = value === null ? null : key === 'isolation' ? Math.round((value * 10) / 3) : value
+    }
+    for (const [key, value] of Object.entries(scales)) body[key] = Math.round(value)
+    await submitCheckin(body)
+    await navigateTo('/equipage')
+  } catch (e) {
+    submitError.value = (e as Error).message
+  }
+}
 
 const answered = computed(
   () => Object.values(symptoms).filter((v) => v !== null).length + Object.keys(scales).length,
@@ -236,7 +258,8 @@ function formatScale(value: number) {
           Vision modifiée + maux de tête répétés : un test visuel guidé vous sera proposé et le CMO sera
           prévenu.
         </p>
-        <UiButton class="mt-auto" block :icon="Check" to="/equipage">Valider mon check-in</UiButton>
+        <p v-if="submitError" class="mt-auto text-sm text-critical-ink" role="alert">{{ submitError }}</p>
+        <UiButton class="mt-auto" block :icon="Check" @click="submit">Valider mon check-in</UiButton>
       </div>
     </div>
   </div>

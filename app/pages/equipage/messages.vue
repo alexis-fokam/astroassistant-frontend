@@ -9,7 +9,6 @@ import {
   Search,
   Send,
 } from 'lucide-vue-next'
-import { GROUND_MESSAGES } from '~/mocks/groundMessages'
 
 /**
  * Page E-16: messages from the flight surgeon (spec F10.4, Figma "E-16 · Messages du flight surgeon").
@@ -19,25 +18,28 @@ definePageMeta({ layout: 'app' })
 useHead({ title: 'Messages du sol' })
 
 const { mission } = useMissionData()
+const { messages: inbox } = await useGroundMessagesScreen()
 
 const filter = ref('all')
 const FILTERS = [
   { value: 'all', label: 'Tous' },
-  { value: 'unread', label: 'Non lus · 1' },
+  { value: 'unread', label: `Non lus · ${inbox.value.filter((m) => m.unread).length}` },
   { value: 'instructions', label: 'Consignes' },
 ]
 const query = ref('')
 
 const messages = computed(() =>
-  GROUND_MESSAGES.filter((message) => {
+  inbox.value.filter((message) => {
     if (filter.value === 'unread' && !message.unread) return false
     if (filter.value === 'instructions' && !message.isInstruction) return false
     const text = `${message.author} ${message.subject}`.toLowerCase()
     return text.includes(query.value.trim().toLowerCase())
   }),
 )
-const selectedId = ref(GROUND_MESSAGES[0]!.id)
-const selected = computed(() => GROUND_MESSAGES.find((message) => message.id === selectedId.value)!)
+const selectedId = ref(inbox.value[0]?.id ?? 0)
+const selected = computed(
+  () => inbox.value.find((message) => message.id === selectedId.value) ?? inbox.value[0]!,
+)
 
 /** Splits a paragraph on **bold** markers. */
 function segments(paragraph: string) {

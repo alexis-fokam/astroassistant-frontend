@@ -88,7 +88,23 @@ function toggle() {
   }
 }
 
+const { savePvt } = useActions()
+const saved = ref(false)
+
+/** Store the result once the 3-minute test is complete (F8). */
+function saveResult() {
+  if (saved.value || elapsed.value < TEST_SECONDS) return
+  saved.value = true
+  savePvt({
+    stimuli_count: reactions.value.length,
+    median_rt_ms: median.value,
+    lapses: lapses.value,
+    false_starts: falseStarts.value,
+  }).catch(() => (saved.value = false))
+}
+
 function stop() {
+  saveResult()
   running.value = false
   clearTimeout(delayTimer)
   clearInterval(clockTimer)

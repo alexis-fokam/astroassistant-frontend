@@ -13,6 +13,13 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
   },
 
+  // Backend URL; override with NUXT_PUBLIC_API_BASE (e.g. on the deployed demo).
+  runtimeConfig: {
+    public: {
+      apiBase: 'http://localhost:8000/api/v1',
+    },
+  },
+
   typescript: {
     strict: true,
   },

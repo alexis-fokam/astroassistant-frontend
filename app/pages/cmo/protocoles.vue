@@ -13,7 +13,6 @@ import {
   Zap,
 } from 'lucide-vue-next'
 import { LEVEL_STYLES } from '~/constants/levels'
-import { PROTOCOL_LIBRARY } from '~/mocks/protocolLibrary'
 
 /**
  * Page M-05: versioned protocol library and protocol sheet (spec F4.1, F11.2,
@@ -22,14 +21,18 @@ import { PROTOCOL_LIBRARY } from '~/mocks/protocolLibrary'
 definePageMeta({ layout: 'app' })
 useHead({ title: 'Bibliothèque de protocoles' })
 
+const { library } = await useProtocolLibraryScreen()
+
 const query = ref('')
 const protocols = computed(() =>
-  PROTOCOL_LIBRARY.filter((protocol) =>
+  library.value.filter((protocol) =>
     `${protocol.title} ${protocol.code}`.toLowerCase().includes(query.value.trim().toLowerCase()),
   ),
 )
-const selectedCode = ref(PROTOCOL_LIBRARY[0]!.code)
-const selected = computed(() => PROTOCOL_LIBRARY.find((protocol) => protocol.code === selectedCode.value)!)
+const selectedCode = ref(library.value[0]?.code ?? '')
+const selected = computed(
+  () => library.value.find((protocol) => protocol.code === selectedCode.value) ?? library.value[0]!,
+)
 const selectedStyle = computed(() => LEVEL_STYLES[selected.value.level])
 
 const MATERIAL_STATUS = {

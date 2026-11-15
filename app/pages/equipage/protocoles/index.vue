@@ -2,7 +2,7 @@
 import { ArrowUpDown, Filter, History, Play, Search, Sparkles } from 'lucide-vue-next'
 import { DOMAINS } from '~/constants/domains'
 import { LEVEL_HEX } from '~/constants/levels'
-import { PROTOCOL_RUNS, type RunProgress } from '~/mocks/protocolRuns'
+import type { RunProgress } from '~/mocks/protocolRuns'
 
 /**
  * Page E-07: my protocols (spec F4, Figma "E-07 · Mes protocoles").
@@ -12,16 +12,17 @@ definePageMeta({ layout: 'app' })
 useHead({ title: 'Mes protocoles' })
 
 const { protocols } = useMissionData()
+const { runs } = await useProtocolRunsScreen()
 
 const filter = ref('active')
 const FILTERS = [
-  { value: 'active', label: 'Actifs · 3' },
+  { value: 'active', label: `Actifs · ${runs.value.filter((r) => r.progress !== 'done').length}` },
   { value: 'done', label: 'Terminés' },
   { value: 'all', label: 'Tous' },
 ]
 
-const pending = computed(() => PROTOCOL_RUNS.filter((run) => run.progress !== 'done'))
-const done = computed(() => PROTOCOL_RUNS.filter((run) => run.progress === 'done'))
+const pending = computed(() => runs.value.filter((run) => run.progress !== 'done'))
+const done = computed(() => runs.value.filter((run) => run.progress === 'done'))
 
 const PROGRESS: Record<RunProgress, { label: string; classes: string }> = {
   in_progress: { label: 'En cours', classes: 'bg-primary text-white' },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, CircleHelp, Inbox, LayoutGrid, Search, Settings, WifiOff } from 'lucide-vue-next'
+import { Bell, CircleHelp, Inbox, LayoutGrid, LogOut, Search, Settings, WifiOff } from 'lucide-vue-next'
 import { APP_MODULES } from '~/constants/navigation'
 import { isNavItemActive, moduleForPath } from '~/utils/navigation'
 
@@ -7,6 +7,8 @@ import { isNavItemActive, moduleForPath } from '~/utils/navigation'
 // current profile and emergency button; second row holds the module navigation.
 const route = useRoute()
 const { mission, currentCrew, findCrew } = useMissionData()
+const { isLoggedIn, logout } = useAuth()
+const { t } = useI18n()
 
 const currentModule = computed(() => moduleForPath(route.path))
 
@@ -14,7 +16,7 @@ const currentModule = computed(() => moduleForPath(route.path))
 // otherwise the signed-in astronaut.
 const user = computed(() => {
   if (currentModule.value.key === 'simulation') {
-    return { name: 'Jury', initials: 'JU', tone: 1, role: 'Mode démonstration' }
+    return { name: t('Jury'), initials: 'JU', tone: 1, role: t('Mode démonstration') }
   }
   const member = currentModule.value.key === 'cmo' ? findCrew('AV-04')! : currentCrew
   const role = currentModule.value.key === 'cmo' ? 'Médecin de bord' : 'Astronaute'
@@ -45,7 +47,7 @@ const user = computed(() => {
           "
           :aria-current="currentModule.key === m.key ? 'page' : undefined"
         >
-          {{ m.label }}
+          {{ t(m.label) }}
         </NuxtLink>
       </nav>
 
@@ -54,7 +56,7 @@ const user = computed(() => {
         class="hidden h-9 w-56 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm text-ink-muted hover:border-ink-faint lg:flex"
       >
         <Search :size="16" :stroke-width="1.7" aria-hidden="true" />
-        <span>Rechercher</span>
+        <span>{{ t('Rechercher') }}</span>
         <kbd class="ml-auto rounded bg-subtle px-1.5 text-[11px] font-medium">Ctrl K</kbd>
       </button>
 
@@ -91,22 +93,23 @@ const user = computed(() => {
         <button
           type="button"
           class="hidden size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle sm:flex"
-          aria-label="Modules et outils"
+          :aria-label="t('Modules et outils')"
         >
           <LayoutGrid :size="20" :stroke-width="1.7" aria-hidden="true" />
         </button>
         <NuxtLink
           to="/equipage/parametres"
           class="hidden size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle sm:flex"
-          aria-label="Paramètres"
+          :aria-label="t('Paramètres')"
         >
           <Settings :size="20" :stroke-width="1.7" aria-hidden="true" />
         </NuxtLink>
 
+        <UiLanguageSwitch class="ml-1" />
         <NuxtLink
           to="/connexion"
           class="ml-2 flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 hover:bg-subtle"
-          :aria-label="`${user.name}, changer de profil`"
+          :aria-label="t('{name}, changer de profil', { name: user.name })"
         >
           <UiAvatar :initials="user.initials" :tone="user.tone" :size="34" />
           <span class="hidden leading-tight xl:block">
@@ -114,12 +117,22 @@ const user = computed(() => {
             <span class="block text-xs text-ink-muted">{{ user.role }}</span>
           </span>
         </NuxtLink>
+        <button
+          v-if="isLoggedIn"
+          type="button"
+          class="flex size-9 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle hover:text-ink"
+          :aria-label="t('Se déconnecter')"
+          :title="t('Se déconnecter')"
+          @click="logout"
+        >
+          <LogOut :size="20" :stroke-width="1.7" aria-hidden="true" />
+        </button>
         <ShellEmergencyButton class="ml-2" />
       </div>
     </div>
 
     <div class="mx-auto flex max-w-[1440px] items-center gap-4 px-6">
-      <nav aria-label="Navigation du module" class="flex flex-1 gap-1 overflow-x-auto">
+      <nav :aria-label="t('Navigation du module')" class="flex flex-1 gap-1 overflow-x-auto">
         <NuxtLink
           v-for="item in currentModule.items"
           :key="item.to"
@@ -129,7 +142,7 @@ const user = computed(() => {
           :aria-current="isNavItemActive(item, route.path) ? 'page' : undefined"
         >
           <component :is="item.icon" :size="16" :stroke-width="1.7" aria-hidden="true" />
-          {{ item.label }}
+          {{ t(item.label) }}
           <span
             v-if="isNavItemActive(item, route.path)"
             class="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary"

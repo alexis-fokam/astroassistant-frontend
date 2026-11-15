@@ -3,25 +3,31 @@ import { Check, Delete, Lock, WifiOff } from 'lucide-vue-next'
 
 /**
  * Pages A-01 / A-02: local profile picker and PIN unlock (spec §7, F9.4).
- * Demo mode: PINs are verified by the backend once the auth endpoint exists;
- * until then any 4-digit code unlocks the selected profile.
+ * The PIN is checked by the backend (POST /api/v1/auth/login). In demo mode, when the
+ * backend is unreachable, any 4-digit code unlocks the selected profile.
  */
 definePageMeta({ layout: 'bare' })
-useHead({ title: 'Connexion' })
 
 const PIN_LENGTH = 4
 const MAX_ATTEMPTS = 3
 
-const { crew, mission } = useMissionData()
-const selectedCode = ref(crew[1]!.code)
+const { crew, mission, source } = useMissionData()
+const { login } = useAuth()
+const { t } = useI18n()
+useHead({ title: () => t('Connexion') })
+const route = useRoute()
+const selectedCode = ref(crew[1]?.code ?? crew[0]!.code)
 const pin = ref('')
 const attemptsLeft = ref(MAX_ATTEMPTS)
+const error = ref<string | null>(null)
+const pending = ref(false)
 
 const selected = computed(() => crew.find((member) => member.code === selectedCode.value)!)
 
 function selectMember(code: string) {
   selectedCode.value = code
   pin.value = ''
+  error.value = null
 }
 
 function press(digit: string) {
@@ -32,9 +38,23 @@ function erase() {
   pin.value = pin.value.slice(0, -1)
 }
 
-function submit() {
-  if (pin.value.length !== PIN_LENGTH) return
-  navigateTo(selected.value.isCmo ? '/cmo' : '/equipage')
+async function submit() {
+  if (pin.value.length !== PIN_LENGTH || pending.value || attemptsLeft.value <= 0) return
+  const home = selected.value.isCmo ? '/cmo' : '/equipage'
+  if (source !== 'api') return navigateTo(home)
+  pending.value = true
+  error.value = null
+  try {
+    await login(selectedCode.value, pin.value)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
+    await navigateTo(redirect ?? home)
+  } catch (e) {
+    attemptsLeft.value -= 1
+    error.value = (e as Error).message
+    pin.value = ''
+  } finally {
+    pending.value = false
+  }
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -51,13 +71,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="grid min-h-dvh lg:grid-cols-[minmax(0,560px)_1fr]">
     <!-- Profile picker -->
     <section class="flex flex-col border-r border-divider bg-surface px-8 py-10 sm:px-14">
-      <BrandLogo :size="36" />
-      <h1 class="mt-14 text-3xl font-bold">Qui utilise le poste ?</h1>
+      <div class="flex items-center justify-between">
+        <BrandLogo :size="36" />
+        <UiLanguageSwitch />
+      </div>
+      <h1 class="mt-14 text-3xl font-bold">{{ t('Qui utilise le poste ?') }}</h1>
       <p class="mt-2 text-ink-muted">
-        Profils locaux, données chiffrées sur l’appareil. Aucune connexion requise.
+        {{ t('Profils locaux, données chiffrées sur l’appareil. Aucune connexion requise.') }}
       </p>
 
-      <ul class="mt-8 space-y-3" role="radiogroup" aria-label="Profil">
+      <ul class="mt-8 space-y-3" role="radiogroup" :aria-label="t('Profil')">
         <li v-for="member in crew" :key="member.code">
           <button
             type="button"
@@ -74,7 +97,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <UiAvatar :initials="member.initials" :size="42" />
             <span class="flex-1">
               <span class="block font-semibold">{{ member.firstName }} {{ member.lastName }}</span>
-              <span class="block text-sm text-ink-muted">{{ member.code }} · {{ member.role }}</span>
+              <span class="block text-sm text-ink-muted">{{ member.code }} · {{ t(member.role) }}</span>
             </span>
             <span
               v-if="member.isCmo"
@@ -89,9 +112,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
       <div class="mt-auto flex flex-wrap items-center gap-3 pt-10 text-sm text-ink-muted">
         <span class="flex items-center gap-1.5 rounded-full bg-subtle px-3 py-1.5">
-          <WifiOff :size="14" aria-hidden="true" /> Hors ligne · {{ mission.clock }}
+          <WifiOff :size="14" aria-hidden="true" /> {{ t('Hors ligne') }} · {{ mission.clock }}
         </span>
-        <span>Prototype — n’est pas un dispositif médical certifié.</span>
+        <span>{{ t('Prototype — n’est pas un dispositif médical certifié.') }}</span>
       </div>
     </section>
 
@@ -106,7 +129,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <h2 class="mt-4 text-xl font-semibold">{{ selected.firstName }} {{ selected.lastName }}</h2>
           <p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
             <Lock :size="14" aria-hidden="true" />
-            {{ selected.isCmo ? 'Profil CMO · accès à tout l’équipage' : 'Accès à vos propres données' }}
+            {{ t(selected.isCmo ? 'Profil CMO · accès à tout l’équipage' : 'Accès à vos propres données') }}
           </p>
         </div>
 
@@ -117,7 +140,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             class="size-4 rounded-full border-2 transition-colors"
             :class="i <= pin.length ? 'border-primary bg-primary' : 'border-line'"
           />
-          <span class="sr-only">{{ pin.length }} chiffres saisis sur {{ PIN_LENGTH }}</span>
+          <span class="sr-only">{{
+            t('{n} chiffres saisis sur {total}', { n: pin.length, total: PIN_LENGTH })
+          }}</span>
         </div>
 
         <div class="mt-7 grid grid-cols-3 gap-3">
@@ -133,7 +158,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <button
             type="button"
             class="flex h-16 items-center justify-center rounded-xl text-ink-muted hover:bg-subtle"
-            aria-label="Effacer"
+            :aria-label="t('Effacer')"
             @click="erase"
           >
             <Delete :size="24" aria-hidden="true" />
@@ -149,15 +174,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             type="button"
             class="flex h-16 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-hover disabled:opacity-40"
             :disabled="pin.length !== PIN_LENGTH"
-            aria-label="Déverrouiller"
+            :aria-label="t('Déverrouiller')"
             @click="submit"
           >
             <Check :size="26" :stroke-width="2.5" aria-hidden="true" />
           </button>
         </div>
 
-        <p class="mt-5 text-center text-xs text-ink-muted">
-          {{ attemptsLeft }} tentatives restantes, puis verrouillage 5 min.
+        <p v-if="error" class="mt-5 text-center text-sm font-medium text-critical" role="alert">
+          {{ t(error) }}
+        </p>
+        <p class="mt-3 text-center text-xs text-ink-muted">
+          {{ t('{n} tentatives restantes, puis verrouillage 5 min.', { n: attemptsLeft }) }}
+        </p>
+        <p v-if="source !== 'api'" class="mt-1 text-center text-xs text-ink-muted">
+          {{ t('Mode démonstration : serveur injoignable, n’importe quel code à 4 chiffres.') }}
         </p>
       </div>
     </section>
