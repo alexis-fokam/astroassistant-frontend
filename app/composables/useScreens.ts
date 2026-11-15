@@ -12,9 +12,14 @@ import { PROTOCOL_RUNS, type ProtocolRunRow } from '~/mocks/protocolRuns'
 import { CONTACT_WINDOWS, SYNC_PACKETS, type SyncPacket as MockSyncPacket } from '~/mocks/syncPackets'
 
 import { SYSTEMS, type SystemDetail } from '~/mocks/systems'
+import { ALERTS } from '~/mocks/alerts'
+import { VITALS } from '~/mocks/vitals'
+import { DOMAIN_KEYS } from '~/constants/domains'
 import type {
+  ApiAlert,
   ApiAuditEntry,
   ApiContactWindow,
+  ApiCrewStatus,
   ApiCrewVitals,
   ApiDomainHistory,
   ApiGroundMessage,
@@ -25,8 +30,8 @@ import type {
   ApiRadiation,
   ApiRunListItem,
 } from '~/types/api'
-import type { Domain, Level, VitalSnapshot } from '~/types/domain'
-import { initials, toVitals } from '~/utils/apiAdapters'
+import type { Alert, Domain, Level, VitalSnapshot } from '~/types/domain'
+import { initials, toAlert, toVitals } from '~/utils/apiAdapters'
 
 /** Export packet with its ground reception time (communication delay, ground M4). */
 export type SyncPacket = MockSyncPacket & { receivedAt?: string }
@@ -371,4 +376,74 @@ export async function useSystemScreen(domain: Ref<Domain>) {
     () => SYSTEMS[domain.value],
   )
   return { detail: computed(() => loaded.value.data), live: computed(() => loaded.value.live) }
+}
+
+// ----------------------------------------------------------------- dossier astronaute (M-03, CMO)
+export interface CrewRecord {
+  level: Level
+  score: number
+  domains: Record<Domain, number>
+  factors: string[]
+  vitals: VitalSnapshot[]
+  alerts: Alert[]
+  runs: { id: number; code: string; title: string; status: string; efficacy: number | null }[]
+}
+
+/** Clé de rechargement du dossier : la page la rafraîchit pendant la démo en direct. */
+export const crewRecordKey = (code: string) => `screen-crew-record-${code}`
+
+/**
+ * Dossier d'un astronaute vu par le médecin de bord : statut et scores du moteur IA,
+ * dernières mesures, alertes et protocoles. Repli sur les données de démo hors ligne.
+ */
+export async function useCrewRecordScreen(code: Ref<string>) {
+  const { api } = useApi()
+  const fallback = (): CrewRecord => {
+    const member = useMissionData().findCrew(code.value)
+    return {
+      level: member?.level ?? 'nominal',
+      score: member?.score ?? 0,
+      domains: member?.domains ?? ({} as Record<Domain, number>),
+      factors: [],
+      vitals: VITALS,
+      alerts: ALERTS.filter((a) => a.crew === code.value),
+      runs: [],
+    }
+  }
+  const loaded = await loadScreen(
+    () => crewRecordKey(code.value),
+    async () => {
+      const [status, vitals, alerts, runs] = await Promise.all([
+        api<ApiCrewStatus>(`/crew/${code.value}/status`),
+        api<ApiCrewVitals>(`/crew/${code.value}/vitals/latest`),
+        api<ApiAlert[]>('/alerts', { query: { crew: code.value, status: 'all', limit: 8 } }),
+        api<ApiRunListItem[]>('/protocols/runs', { query: { crew: code.value, status: 'all', limit: 5 } }),
+      ])
+      const now = new Date(status.timestamp ?? Date.now())
+      const domains = Object.fromEntries(
+        DOMAIN_KEYS.map((d) => [d, Math.round(status.domains[d] ?? 0)]),
+      ) as Record<Domain, number>
+      const record: CrewRecord = {
+        level: status.status ?? 'nominal',
+        score: Math.round(status.global_score ?? 0),
+        domains,
+        factors: status.top_factors.map(
+          (f) =>
+            `${f.label ?? f.feature} : ${typeof f.value === 'number' ? f.value.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : (f.value ?? '—')}`,
+        ),
+        vitals: toVitals(vitals.vitals),
+        alerts: alerts.map((a) => toAlert(a, now)),
+        runs: runs.map((r) => ({
+          id: r.id,
+          code: r.protocol_code,
+          title: r.protocol_title,
+          status: r.status,
+          efficacy: r.efficacy,
+        })),
+      }
+      return record
+    },
+    fallback,
+  )
+  return { record: computed(() => loaded.value.data), live: computed(() => loaded.value.live) }
 }

@@ -165,6 +165,28 @@ export const EN: Record<string, string> = {
   "Paquet de synthèse transmis au sol, puis réception d'une consigne.":
     'Summary packet sent to the ground, then an instruction received.',
 
+  // ------------------------------------------------------------------ dossier astronaute (CMO)
+  'Dossier {name}': '{name}’s record',
+  'Fil d’Ariane': 'Breadcrumb',
+  'jour {n} de mission': 'mission day {n}',
+  'Scores par domaine': 'Scores by domain',
+  'Score {domain}': '{domain} score',
+  'Pourquoi ce statut': 'Why this status',
+  'Dernières mesures': 'Latest readings',
+  Mesure: 'Reading',
+  Valeur: 'Value',
+  Tendance: 'Trend',
+  Statut: 'Status',
+  Alertes: 'Alerts',
+  'Aucune alerte pour cet astronaute.': 'No alerts for this astronaut.',
+  'Protocoles exécutés': 'Protocols run',
+  'Aucun protocole lancé.': 'No protocol started.',
+  Terminé: 'Completed',
+  Interrompu: 'Aborted',
+  'Alertes, {n} non résolues': 'Alerts, {n} unresolved',
+  'Messages du sol': 'Ground messages',
+  'Serveur connecté': 'Server connected',
+
   // ------------------------------------------------------------------ erreurs
   'Page introuvable': 'Page not found',
   'Une erreur est survenue': 'Something went wrong',

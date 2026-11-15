@@ -8,7 +8,6 @@ import {
   Pause,
   Play,
   RadioTower,
-  RefreshCw,
   Send,
   Sparkles,
   Sun,
@@ -48,6 +47,8 @@ const scenarioCards = computed(() =>
 )
 
 const { api } = useApi()
+// Documentation interactive de l'API (Swagger), à côté de l'adresse du serveur.
+const docsUrl = useRuntimeConfig().public.apiBase.replace(/\/api\/v1\/?$/, '') + '/docs'
 // Une ref : le compilateur de gabarit déballe les refs, pas les constantes des composables.
 const isLive = ref(useMissionData().source === 'api')
 
@@ -168,25 +169,6 @@ watch(speed, (value) => {
   }, 400)
 })
 
-interface VirtualMember {
-  code: string
-  name: string
-  initials: string
-  tone?: number
-  enabled: boolean
-}
-
-// Membres simulés (F15.1) ; AV-05 est une place libre.
-const virtualCrew = ref<VirtualMember[]>([
-  ...crew.map((member) => ({
-    code: member.code,
-    name: member.lastName,
-    initials: member.initials,
-    tone: member.tone,
-    enabled: true,
-  })),
-  { code: 'AV-05', name: 'libre', initials: '+', enabled: false },
-])
 
 const DEMO_LOG = (
   [
@@ -237,10 +219,9 @@ const simClock = computed(() => {
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <UiButton variant="secondary" size="sm" :icon="Code" to="http://localhost:8000/docs"
+        <UiButton variant="secondary" size="sm" :icon="Code" :to="docsUrl" target="_blank"
           >Swagger /docs</UiButton
         >
-        <UiButton variant="secondary" size="sm" :icon="RefreshCw">{{ t('Réinitialiser') }}</UiButton>
         <UiButton variant="ai" size="sm" :icon="Sparkles" to="/simulation?visite=1">{{
           t('Visite guidée')
         }}</UiButton>
@@ -372,20 +353,10 @@ const simClock = computed(() => {
 
       <UiCard :title="t('Équipage virtuel')" :icon="Users">
         <ul class="space-y-2.5">
-          <li v-for="member in virtualCrew" :key="member.code" class="flex items-center gap-3">
+          <li v-for="member in crew" :key="member.code" class="flex items-center gap-3">
             <UiAvatar :initials="member.initials" :tone="member.tone" :size="28" />
-            <span class="flex-1 text-sm">{{ member.code }} · {{ t(member.name) }}</span>
-            <button
-              type="button"
-              role="switch"
-              :aria-checked="member.enabled"
-              :aria-label="t('Simuler {code}', { code: member.code })"
-              class="flex h-6 w-11 items-center rounded-full p-0.5 transition-colors"
-              :class="member.enabled ? 'justify-end bg-primary' : 'bg-line'"
-              @click="member.enabled = !member.enabled"
-            >
-              <span class="size-5 rounded-full bg-white shadow" />
-            </button>
+            <span class="flex-1 text-sm">{{ member.code }} · {{ member.firstName }} {{ member.lastName }}</span>
+            <UiStatusBadge :level="member.level" />
           </li>
         </ul>
         <p class="mt-4 flex items-center justify-between border-t border-divider pt-3 text-sm text-ink-muted">
@@ -397,9 +368,11 @@ const simClock = computed(() => {
       <UiCard :title="t('Journal moteur en direct')" :icon="Code">
         <template #actions>
           <span
-            class="flex items-center gap-1.5 rounded-full bg-nominal-soft px-2.5 py-1 text-xs font-semibold text-nominal-ink"
+            class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+            :class="isLive ? 'bg-nominal-soft text-nominal-ink' : 'bg-subtle text-ink-muted'"
           >
-            <span class="size-1.5 rounded-full bg-nominal" /> {{ t('WS connecté') }}
+            <span class="size-1.5 rounded-full" :class="isLive ? 'bg-nominal' : 'bg-ink-faint'" />
+            {{ t(isLive ? 'Serveur connecté' : 'Mode démonstration') }}
           </span>
         </template>
         <ul class="space-y-2 rounded-xl bg-subtle p-3 font-mono text-xs" aria-live="polite">
