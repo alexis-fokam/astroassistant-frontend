@@ -2,7 +2,7 @@
 import { LEVEL_HEX } from '~/constants/levels'
 import { levelFromScore } from '~/utils/health'
 
-// Circular gauge for a 0-100 risk score, coloured by its level.
+// Jauge circulaire d'un score de risque 0-100, colorée selon son niveau ; elle se remplit à l'apparition.
 const props = withDefaults(
   defineProps<{ score: number; size?: number; stroke?: number; caption?: string }>(),
   { size: 132, stroke: 12 },
@@ -28,6 +28,8 @@ const color = computed(() => LEVEL_HEX[levelFromScore(props.score)])
         :stroke-width="stroke"
         fill="none"
         stroke-linecap="round"
+        class="ring-draw"
+        :style="{ '--ring-length': `${(circumference * score) / 100}` }"
         :stroke-dasharray="`${(circumference * score) / 100} ${circumference}`"
       />
     </svg>

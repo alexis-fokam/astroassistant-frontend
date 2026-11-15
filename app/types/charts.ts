@@ -1,8 +1,10 @@
-/** Inputs of the SVG chart components (components/charts). */
+/** Entrées des graphiques SVG (components/charts). */
 
 export interface ChartSeries {
   values: number[]
   color: string
+  /** Nom affiché dans l'info-bulle (« Projection actuelle »…). */
+  name?: string
   /** Draw as a dashed line (projections). */
   dashed?: boolean
   /** Index of the first value on the shared x axis. */

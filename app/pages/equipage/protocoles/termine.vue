@@ -20,6 +20,9 @@ import {
  * Figma "E-09 · Fin de protocole & réévaluation").
  */
 definePageMeta({ layout: 'app' })
+const { t } = useI18n()
+// Rappel du coucher avancé, ajouté au planning de ce poste.
+const reminderAdded = ref(false)
 useHead({ title: 'Protocole terminé' })
 
 const EFFICACY = 64
@@ -150,7 +153,18 @@ const comment = ref('')
             <span class="block font-semibold">Coucher avancé à 22:45</span>
             <span class="block text-xs text-ink-muted">Rappel à 22:15 · 3 nuits</span>
           </span>
-          <UiButton variant="secondary" size="sm" :icon="Plus">Ajouter</UiButton>
+          <UiButton
+            v-if="!reminderAdded"
+            variant="secondary"
+            size="sm"
+            :icon="Plus"
+            @click="reminderAdded = true"
+          >
+            {{ t('Ajouter') }}
+          </UiButton>
+          <span v-else class="flex items-center gap-1 text-xs font-semibold text-nominal-ink" role="status">
+            <Check :size="14" aria-hidden="true" /> {{ t('Rappel ajouté') }}
+          </span>
         </div>
       </UiCard>
       <UiCard title="Partagé avec" :icon="Users">

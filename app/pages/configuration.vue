@@ -61,7 +61,6 @@ async function save() {
   } catch (e) {
     saveNote.value = (e as Error).message
   }
-  await navigateTo('/profil/nouveau')
 }
 
 function selectDestination(destination: (typeof DESTINATIONS)[number]) {

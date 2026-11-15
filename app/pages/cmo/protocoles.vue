@@ -15,11 +15,18 @@ import {
 import { LEVEL_STYLES } from '~/constants/levels'
 
 /**
- * Page M-05: versioned protocol library and protocol sheet (spec F4.1, F11.2,
- * Figma "M-05 · Bibliothèque & fiche protocole").
+ * Page M-05 : bibliothèque de protocoles versionnés et fiche protocole (F4.1, F11.2,
+ * Figma « M-05 »). La fiche s'exporte en JSON ; « Lancer » ouvre l'exécution pas à pas.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Bibliothèque de protocoles' })
+const { t } = useI18n()
+useHead({ title: () => t('Bibliothèque de protocoles') })
+
+/** Fiche du protocole sélectionné, téléchargée en JSON (versionnée, partageable avec le sol). */
+function exportSheet() {
+  const p = selected.value
+  downloadFile(`${p.code}-v${p.version}.json`, JSON.stringify(p, null, 2), 'application/json')
+}
 
 const { library } = await useProtocolLibraryScreen()
 
@@ -46,13 +53,19 @@ const materials = computed(() =>
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <UiPageHeader
-      title="Bibliothèque de protocoles"
-      subtitle="12 protocoles versionnés (JSON) · un protocole par alerte WARNING ou CRITICAL"
+      :title="t('Bibliothèque de protocoles')"
+      :subtitle="
+        t('{n} protocoles versionnés (JSON) · un protocole par alerte WARNING ou CRITICAL', {
+          n: library.length,
+        })
+      "
     >
       <template #actions
-        ><UiButton variant="secondary" :icon="Download">Importer une version</UiButton></template
+        ><UiButton variant="secondary" :icon="Download" @click="exportSheet">{{
+          t('Exporter la fiche (JSON)')
+        }}</UiButton></template
       >
     </UiPageHeader>
 
@@ -115,8 +128,12 @@ const materials = computed(() =>
               {{ selected.validatedBy }}
             </p>
           </div>
-          <UiButton :variant="selected.level === 'critical' ? 'danger' : 'primary'" :icon="Play">
-            Lancer pour l’équipage
+          <UiButton
+            :variant="selected.level === 'critical' ? 'danger' : 'primary'"
+            :icon="Play"
+            :to="`/equipage/protocoles/${selected.code}`"
+          >
+            {{ t('Lancer le protocole') }}
           </UiButton>
         </section>
 

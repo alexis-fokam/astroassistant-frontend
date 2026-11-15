@@ -1,28 +1,51 @@
 <script setup lang="ts">
-import {
-  ArrowUpDown,
-  BookOpen,
-  Box,
-  Filter,
-  Layers,
-  OctagonAlert,
-  Plus,
-  Search,
-  Timer,
-  TriangleAlert,
-  UserRound,
-} from 'lucide-vue-next'
+import { BookOpen, Box, OctagonAlert, Search, Timer, TriangleAlert, X } from 'lucide-vue-next'
 import { LEVEL_HEX } from '~/constants/levels'
 import type { InventoryRow } from '~/mocks/inventory'
 
 /**
- * Page M-06: on-board pharmacy (spec F11, Figma "M-06 · Pharmacie & kit médical").
- * Low-stock and expiry alerts (F11.1); the usage register is CMO-only (F11.3).
+ * Page M-06 : pharmacie de bord (F11, Figma « M-06 »).
+ * Alertes de stock bas et de péremption (F11.1), recherche, filtre par emplacement, et
+ * registre des usages réservé au médecin de bord (F11.3) : chaque usage décrémente le stock.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Pharmacie de bord' })
+const { t } = useI18n()
+useHead({ title: () => t('Pharmacie de bord') })
 
 const { inventory, summary } = await usePharmacyScreen()
+const { crew } = useMissionData()
+const { recordUsage, live } = useActions()
+
+const query = ref('')
+
+// ------------------------------------------------------------------ registre des usages
+const showUsage = ref(false)
+const usage = reactive({ item: '', quantity: 1, patient: '', note: '' })
+const usageMessage = ref<{ ok: boolean; text: string } | null>(null)
+const saving = ref(false)
+async function submitUsage() {
+  if (!usage.item || usage.quantity <= 0) return
+  saving.value = true
+  usageMessage.value = null
+  try {
+    const saved = await recordUsage(usage.item, usage.quantity, usage.patient, usage.note)
+    if (saved) {
+      await refreshNuxtData('screen-pharmacy')
+      usageMessage.value = { ok: true, text: t('Usage enregistré : le stock est mis à jour.') }
+      usage.quantity = 1
+      usage.note = ''
+    } else {
+      usageMessage.value = {
+        ok: false,
+        text: t('Mode démonstration : connectez-vous au serveur pour enregistrer un usage.'),
+      }
+    }
+  } catch (e) {
+    usageMessage.value = { ok: false, text: t((e as Error).message) }
+  } finally {
+    saving.value = false
+  }
+}
 
 const kit = ref('all')
 const KITS = [
@@ -31,7 +54,14 @@ const KITS = [
   { value: 'module-b', label: 'Module B' },
 ]
 
-const visible = computed(() => inventory.value.filter((row) => kit.value === 'all' || row.kit === kit.value))
+const visible = computed(() => {
+  const words = query.value.trim().toLowerCase()
+  return inventory.value.filter(
+    (row) =>
+      (kit.value === 'all' || row.kit === kit.value) &&
+      (!words || `${row.name} ${row.code} ${row.location}`.toLowerCase().includes(words)),
+  )
+})
 
 const groups = computed(() =>
   (
@@ -58,17 +88,82 @@ function barClass(row: InventoryRow) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <UiPageHeader
-      title="Pharmacie de bord"
-      subtitle="Inventaire embarqué · registre des usages réservé au médecin de bord"
+      :title="t('Pharmacie de bord')"
+      :subtitle="t('Inventaire embarqué · registre des usages réservé au médecin de bord')"
     >
-      <template #actions
-        ><UiButton variant="secondary" :icon="BookOpen">Registre des usages</UiButton></template
-      >
+      <template #actions>
+        <UiButton variant="secondary" :icon="showUsage ? X : BookOpen" @click="showUsage = !showUsage">
+          {{ t(showUsage ? 'Fermer le registre' : 'Enregistrer un usage') }}
+        </UiButton>
+      </template>
     </UiPageHeader>
 
-    <section aria-label="Indicateurs" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <UiCard v-if="showUsage" :title="t('Registre des usages')" :icon="BookOpen">
+      <form
+        class="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_0.7fr_1fr_2fr_auto] lg:items-end"
+        @submit.prevent="submitUsage"
+      >
+        <label class="block">
+          <span class="text-sm font-semibold">{{ t('Article') }}</span>
+          <select
+            v-model="usage.item"
+            required
+            class="mt-1.5 h-11 w-full rounded-lg border border-line bg-surface px-3 text-sm"
+          >
+            <option value="" disabled>{{ t('Choisir un article') }}</option>
+            <option v-for="row in inventory" :key="row.code" :value="row.code">
+              {{ row.name }} ({{ row.quantity }})
+            </option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-sm font-semibold">{{ t('Quantité') }}</span>
+          <input
+            v-model.number="usage.quantity"
+            type="number"
+            min="1"
+            step="1"
+            required
+            class="mt-1.5 h-11 w-full rounded-lg border border-line px-3 text-sm"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-semibold">{{ t('Patient') }}</span>
+          <select
+            v-model="usage.patient"
+            class="mt-1.5 h-11 w-full rounded-lg border border-line bg-surface px-3 text-sm"
+          >
+            <option value="">—</option>
+            <option v-for="m in crew" :key="m.code" :value="m.code">{{ m.code }} · {{ m.firstName }}</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-sm font-semibold">{{ t('Note') }}</span>
+          <input
+            v-model="usage.note"
+            type="text"
+            maxlength="200"
+            class="mt-1.5 h-11 w-full rounded-lg border border-line px-3 text-sm"
+          />
+        </label>
+        <UiButton type="submit" :disabled="saving || !usage.item">{{ t('Enregistrer') }}</UiButton>
+      </form>
+      <p
+        v-if="usageMessage"
+        class="mt-4 rounded-lg px-3 py-2 text-sm"
+        :class="usageMessage.ok ? 'bg-nominal-soft text-nominal-ink' : 'bg-warning-soft text-warning-ink'"
+        role="status"
+      >
+        {{ usageMessage.text }}
+      </p>
+      <p v-if="!live()" class="mt-3 text-xs text-ink-muted">
+        {{ t('Réservé au médecin de bord connecté.') }}
+      </p>
+    </UiCard>
+
+    <section :aria-label="t('Indicateurs')" class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
       <DashboardKpiCard label="Articles suivis" :icon="Box" :value="String(summary.tracked)" />
       <DashboardKpiCard
         label="Stock bas"
@@ -90,14 +185,23 @@ function barClass(row: InventoryRow) {
       />
     </section>
 
-    <div class="flex flex-wrap items-center gap-1">
-      <UiButton size="sm" :icon="Plus">Ajouter un article</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="Search">Rechercher</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="UserRound">Membre</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="Filter">Filtrer</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="ArrowUpDown">Trier</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="Layers">Grouper par</UiButton>
-      <UiSegmented v-model="kit" class="ml-auto" :options="KITS" size="sm" label="Emplacement" />
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative min-w-56 flex-1">
+        <Search
+          :size="16"
+          class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint"
+          aria-hidden="true"
+        />
+        <label for="pharmacy-search" class="sr-only">{{ t('Rechercher un article') }}</label>
+        <input
+          id="pharmacy-search"
+          v-model="query"
+          type="search"
+          :placeholder="t('Rechercher un médicament, un emplacement…')"
+          class="h-10 w-full rounded-xl border border-line bg-surface pr-3 pl-9 text-sm outline-none focus:border-primary"
+        />
+      </div>
+      <UiSegmented v-model="kit" :options="KITS" size="sm" :label="t('Emplacement')" />
     </div>
 
     <BoardGroup

@@ -16,14 +16,25 @@ import { buildSeries } from '~/utils/series'
  * 24 h series with normal band, exercise highlight, tooltip and zoom.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Fréquence cardiaque' })
+const { t } = useI18n()
+useHead({ title: () => t('Fréquence cardiaque') })
 
-const range = ref('24h')
-const RANGES = [
-  { value: '24h', label: '24 h' },
-  { value: '7d', label: '7 j' },
-  { value: 'mission', label: 'Mission' },
-]
+/** Export CSV des 24 h : heure et fréquence cardiaque (un point toutes les 15 min). */
+function exportCsv() {
+  downloadFile(
+    'frequence-cardiaque-24h.csv',
+    toCsv([
+      ['Heure', 'FC (bpm)'],
+      ...heartRate.map((value, i) => {
+        const minutes = i * 15
+        return [
+          `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`,
+          value,
+        ]
+      }),
+    ]),
+  )
+}
 
 // One sample every 15 minutes: night rest, daytime activity, ARED session 16:00-17:30.
 const heartRate = buildSeries(97, 0, { noise: 2.5, seed: 91 }).map((noise, i) => {
@@ -85,8 +96,7 @@ function heartRateLevel(value: number): Level {
       subtitle="Mesure continue · capteur thoracique simulé · mise à jour toutes les 5 s"
     >
       <template #actions>
-        <UiSegmented v-model="range" :options="RANGES" label="Période" />
-        <UiButton variant="secondary" :icon="Download">Exporter CSV</UiButton>
+        <UiButton variant="secondary" :icon="Download" @click="exportCsv">{{ t('Exporter CSV') }}</UiButton>
       </template>
     </UiPageHeader>
 

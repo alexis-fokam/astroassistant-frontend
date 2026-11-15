@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 
-defineProps<{ title?: string; icon?: Component; subtitle?: string; padded?: boolean }>()
+// Carte de contenu : titre, icône, sous-titre, actions à droite ; `padded=false` pour un tableau.
+
+// Vue donne `false` à un booléen absent : la marge intérieure est donc activée explicitement par défaut.
+withDefaults(defineProps<{ title?: string; icon?: Component; subtitle?: string; padded?: boolean }>(), {
+  padded: true,
+})
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-col rounded-xl border border-divider bg-surface shadow-card">
-    <header v-if="title" class="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+  <section
+    class="flex min-w-0 flex-col rounded-2xl border border-divider bg-surface shadow-card transition-shadow hover:shadow-hover"
+  >
+    <header v-if="title" class="flex items-center justify-between gap-3 px-6 pt-5 pb-4">
       <div class="flex min-w-0 items-center gap-2.5">
         <component
           :is="icon"
@@ -25,7 +32,7 @@ defineProps<{ title?: string; icon?: Component; subtitle?: string; padded?: bool
         <slot name="actions" />
       </div>
     </header>
-    <div :class="padded === false ? '' : 'px-5 pb-5'" class="flex min-h-0 flex-1 flex-col">
+    <div :class="padded ? 'px-6 pb-6' : ''" class="flex min-h-0 flex-1 flex-col">
       <slot />
     </div>
   </section>

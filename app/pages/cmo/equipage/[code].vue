@@ -1,24 +1,13 @@
 <script setup lang="ts">
-import {
-  Activity,
-  BookOpen,
-  Check,
-  ChevronRight,
-  ClipboardCheck,
-  FileText,
-  ListChecks,
-  MessageSquare,
-  Mic,
-  Plus,
-  Save,
-} from 'lucide-vue-next'
+import { Activity, BellRing, ChevronRight, ListChecks, Sparkles } from 'lucide-vue-next'
 import { DOMAIN_KEYS, DOMAINS } from '~/constants/domains'
 import { LEVEL_STYLES } from '~/constants/levels'
-import type { Level } from '~/types/domain'
 import { levelFromScore } from '~/utils/health'
 
 /**
- * Page M-03: astronaut medical record seen by the CMO (spec F9.3, Figma "M-03 · Dossier astronaute").
+ * Page M-03 : dossier d'un astronaute vu par le médecin de bord (cahier des charges F9.3).
+ * Tout vient du moteur IA en direct : statut, scores par domaine et leurs facteurs,
+ * dernières mesures, alertes et protocoles. La page se rafraîchit toutes les 5 s pendant la démo.
  */
 definePageMeta({
   layout: 'app',
@@ -26,70 +15,38 @@ definePageMeta({
 })
 
 const route = useRoute()
+const { t } = useI18n()
 const { findCrew, mission } = useMissionData()
-const member = computed(() => findCrew(String(route.params.code))!)
+const code = computed(() => String(route.params.code))
+const member = computed(() => findCrew(code.value)!)
+const { record, live } = await useCrewRecordScreen(code)
 
-useHead({ title: () => `Dossier ${member.value.firstName} ${member.value.lastName}` })
+useHead({ title: () => t('Dossier {name}', { name: `${member.value.firstName} ${member.value.lastName}` }) })
 
-const TABS = ['Aperçu', 'Mesures', 'Alertes · 6', 'Protocoles', 'Journal médical', 'Rapports']
-const activeTab = ref(TABS[0])
+const RUN_STATUS: Record<string, string> = {
+  in_progress: 'En cours',
+  completed: 'Terminé',
+  aborted: 'Interrompu',
+}
 
-const MEASURES: { name: string; value: string; baseline: string; level: Level }[] = [
-  { name: 'FC repos', value: '72 bpm', baseline: '68', level: 'nominal' },
-  { name: 'VFC RMSSD', value: '31 ms', baseline: '48', level: 'warning' },
-  { name: 'PA', value: '118/76', baseline: '116/74', level: 'nominal' },
-  { name: 'SpO₂', value: '98 %', baseline: '98', level: 'nominal' },
-  { name: 'Sommeil', value: '5 h 40', baseline: '7 h 05', level: 'warning' },
-  { name: 'Dose mission', value: '89,1 mSv', baseline: '—', level: 'nominal' },
-]
-
-const JOURNAL = [
-  {
-    title: 'Alerte HRV-01 · VFC basse persistante',
-    when: 'Aujourd’hui 06:12 · moteur IA',
-    text: 'Protocole PRT-STRESS-01 proposé, étape 1 terminée.',
-    dot: 'bg-warning',
-  },
-  {
-    title: 'Check-in quotidien',
-    when: 'Hier 08:04',
-    text: 'Stress 7/10, sommeil perçu 3,5/10, douleurs dorsales modérées.',
-    dot: 'bg-primary',
-  },
-  {
-    title: 'Consigne du flight surgeon',
-    when: 'J+141 17:02 · Dr M. Reyes',
-    text: '« Prolonger la fenêtre de sommeil de 45 min pendant 3 nuits. »',
-    dot: 'bg-brand-violet',
-  },
-  {
-    title: 'Consultation · Kenji Arai',
-    when: 'J+139 19:30',
-    text: 'Fatigue signalée. Aucun signe infectieux. Revoir dans 3 jours.',
-    dot: 'bg-nominal',
-  },
-]
-
-const RUNS = [
-  { code: 'PRT-STRESS-01', status: 'En cours · étape 2 sur 5', efficacy: null },
-  { code: 'PRT-HYD-01', status: 'Terminé J+138', efficacy: 0.82 },
-  { code: 'PRT-STRESS-01', status: 'Terminé J+131', efficacy: 0.64 },
-]
-
-const note = ref('')
+let poller: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  if (live.value) poller = setInterval(() => refreshNuxtData(crewRecordKey(code.value)), 5000)
+})
+onBeforeUnmount(() => clearInterval(poller))
 </script>
 
 <template>
   <div class="space-y-5">
-    <nav aria-label="Fil d’Ariane" class="flex items-center gap-1.5 text-sm text-ink-muted">
-      <NuxtLink to="/cmo" class="hover:text-ink">Équipage</NuxtLink>
+    <nav :aria-label="t('Fil d’Ariane')" class="flex items-center gap-1.5 text-sm text-ink-muted">
+      <NuxtLink to="/cmo" class="hover:text-ink">{{ t('Équipage') }}</NuxtLink>
       <ChevronRight :size="14" aria-hidden="true" />
       <span class="font-medium text-ink" aria-current="page"
         >{{ member.firstName }} {{ member.lastName }}</span
       >
     </nav>
 
-    <!-- Identity -->
+    <!-- Identité et statut calculé par le moteur IA -->
     <section
       class="flex flex-wrap items-center gap-6 rounded-2xl border border-divider bg-surface p-6 shadow-card"
     >
@@ -98,49 +55,20 @@ const note = ref('')
         <div class="flex flex-wrap items-center gap-3">
           <h1 class="text-[28px] font-semibold">{{ member.firstName }} {{ member.lastName }}</h1>
           <UiStatusBadge
-            :level="member.level"
+            :level="record.level"
             size="md"
-            :label="`${LEVEL_STYLES[member.level].label} · ${member.score}`"
+            :label="`${LEVEL_STYLES[record.level].label} · ${record.score}`"
           />
         </div>
         <p class="mt-0.5 text-sm text-ink-muted">
-          {{ member.code }} · {{ member.role }} · jour {{ mission.day }} en microgravité
+          {{ member.code }} · {{ t(member.role) }} · {{ t('jour {n} de mission', { n: mission.day }) }}
         </p>
-        <div class="mt-3 flex flex-wrap gap-2 text-xs">
-          <span class="flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
-            <ClipboardCheck :size="13" aria-hidden="true" /> Dernier check-in : hier 08:04
-          </span>
-          <span class="flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
-            <ListChecks :size="13" aria-hidden="true" /> 1 protocole en cours
-          </span>
-        </div>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <UiButton variant="secondary" size="sm" :icon="MessageSquare">Message</UiButton>
-        <UiButton variant="secondary" size="sm" :icon="FileText">Rapport PDF</UiButton>
-        <UiButton size="sm" :icon="Plus" to="/cmo/consultation">Nouvelle consultation</UiButton>
       </div>
     </section>
 
-    <!-- Record tabs -->
-    <nav aria-label="Sections du dossier" class="flex gap-1 border-b border-divider">
-      <button
-        v-for="tab in TABS"
-        :key="tab"
-        type="button"
-        class="relative h-11 px-3 text-sm font-medium"
-        :class="activeTab === tab ? 'text-primary' : 'text-ink-muted hover:text-ink'"
-        :aria-current="activeTab === tab ? 'page' : undefined"
-        @click="activeTab = tab"
-      >
-        {{ tab }}
-        <span v-if="activeTab === tab" class="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />
-      </button>
-    </nav>
-
     <div class="grid gap-5 xl:grid-cols-3">
       <div class="space-y-5">
-        <UiCard title="Scores par domaine" :icon="Activity">
+        <UiCard :title="t('Scores par domaine')" :icon="Activity">
           <ul class="space-y-3">
             <li v-for="key in DOMAIN_KEYS" :key="key">
               <div class="flex items-center gap-2 text-sm">
@@ -151,86 +79,82 @@ const note = ref('')
                   class="text-ink-muted"
                   aria-hidden="true"
                 />
-                <span class="flex-1 font-medium">{{ DOMAINS[key].short }}</span>
-                <span class="w-8 text-right font-semibold tabular">{{ member.domains[key] }}</span>
-                <UiStatusBadge :level="levelFromScore(member.domains[key])" />
+                <span class="flex-1 font-medium">{{ t(DOMAINS[key].short) }}</span>
+                <span class="w-8 text-right font-semibold tabular">{{ record.domains[key] ?? 0 }}</span>
+                <UiStatusBadge :level="levelFromScore(record.domains[key] ?? 0)" />
               </div>
               <UiProgress
                 class="mt-1.5"
-                :value="member.domains[key]"
+                :value="record.domains[key] ?? 0"
                 :height="5"
-                :bar-class="LEVEL_STYLES[levelFromScore(member.domains[key])].bar"
-                :label="`Score ${DOMAINS[key].short}`"
+                :bar-class="LEVEL_STYLES[levelFromScore(record.domains[key] ?? 0)].bar"
+                :label="t('Score {domain}', { domain: t(DOMAINS[key].short) })"
               />
             </li>
           </ul>
         </UiCard>
 
-        <UiCard title="Dernières mesures" :icon="Activity" :padded="false">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-y border-divider text-left text-xs text-ink-muted">
-                <th scope="col" class="px-5 py-2 font-medium">Mesure</th>
-                <th scope="col" class="px-2 py-2 font-medium">Valeur</th>
-                <th scope="col" class="px-2 py-2 font-medium">Baseline</th>
-                <th scope="col" class="px-5 py-2"><span class="sr-only">Statut</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in MEASURES" :key="row.name" class="border-b border-divider last:border-0">
-                <th scope="row" class="px-5 py-2.5 text-left font-semibold">{{ row.name }}</th>
-                <td class="px-2 py-2.5 tabular">{{ row.value }}</td>
-                <td class="px-2 py-2.5 text-ink-muted tabular">{{ row.baseline }}</td>
-                <td class="px-5 py-2.5 text-right"><UiStatusBadge :level="row.level" /></td>
-              </tr>
-            </tbody>
-          </table>
+        <UiCard v-if="record.factors.length" :title="t('Pourquoi ce statut')" :icon="Sparkles">
+          <ul class="space-y-1.5 text-sm">
+            <li v-for="factor in record.factors" :key="factor">{{ factor }}</li>
+          </ul>
         </UiCard>
       </div>
 
-      <UiCard
-        title="Journal médical"
-        subtitle="Alertes, check-ins, consultations, consignes du sol"
-        :icon="BookOpen"
-      >
-        <template #actions><UiButton variant="ghost" size="sm">Tout voir</UiButton></template>
-        <ol class="relative space-y-5 border-l border-divider pl-5">
-          <li v-for="entry in JOURNAL" :key="entry.title" class="relative">
-            <span
-              class="absolute top-1.5 -left-[25px] size-2.5 rounded-full ring-4 ring-surface"
-              :class="entry.dot"
-            />
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
-              <p class="text-sm font-semibold">{{ entry.title }}</p>
-              <p class="text-xs text-ink-muted">{{ entry.when }}</p>
-            </div>
-            <p class="mt-0.5 text-sm text-ink-muted">{{ entry.text }}</p>
-          </li>
-        </ol>
+      <UiCard :title="t('Dernières mesures')" :icon="Activity" :padded="false">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-y border-divider text-left text-xs text-ink-muted">
+              <th scope="col" class="px-5 py-2 font-medium">{{ t('Mesure') }}</th>
+              <th scope="col" class="px-2 py-2 font-medium">{{ t('Valeur') }}</th>
+              <th scope="col" class="px-2 py-2 font-medium">{{ t('Tendance') }}</th>
+              <th scope="col" class="px-5 py-2">
+                <span class="sr-only">{{ t('Statut') }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in record.vitals" :key="row.id" class="border-b border-divider last:border-0">
+              <th scope="row" class="px-5 py-2.5 text-left font-semibold">{{ t(row.label) }}</th>
+              <td class="px-2 py-2.5 tabular">{{ row.value }} {{ row.unit }}</td>
+              <td class="px-2 py-2.5 text-ink-muted tabular">{{ row.trend }}</td>
+              <td class="px-5 py-2.5 text-right"><UiStatusBadge :level="row.level" /></td>
+            </tr>
+          </tbody>
+        </table>
       </UiCard>
 
       <div class="space-y-5">
-        <UiCard title="Note de consultation" :icon="MessageSquare">
-          <label for="consultation-note" class="sr-only">Note de consultation</label>
-          <textarea
-            id="consultation-note"
-            v-model="note"
-            rows="4"
-            placeholder="Observations, examen, conduite à tenir…"
-            class="w-full resize-none rounded-lg border border-line p-3 text-sm outline-none focus:border-primary"
-          />
-          <div class="mt-3 flex justify-between">
-            <UiButton variant="secondary" size="sm" :icon="Mic">Dicter</UiButton>
-            <UiButton size="sm" :icon="Save" :disabled="!note">Enregistrer</UiButton>
-          </div>
-          <p class="mt-2 text-xs text-ink-muted">Ajoutée au journal d’audit, non modifiable ensuite.</p>
+        <UiCard :title="t('Alertes')" :icon="BellRing">
+          <p v-if="record.alerts.length === 0" class="text-sm text-ink-muted">
+            {{ t('Aucune alerte pour cet astronaute.') }}
+          </p>
+          <ul v-else class="space-y-2.5">
+            <li
+              v-for="alert in record.alerts"
+              :key="alert.id"
+              class="rounded-xl border border-divider p-3"
+              :class="alert.status === 'resolved' ? 'opacity-60' : ''"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <UiStatusBadge :level="alert.level" />
+                <span class="text-xs text-ink-muted">{{ alert.since }}</span>
+              </div>
+              <p class="mt-1.5 text-sm font-semibold">{{ t(alert.title) }}</p>
+              <p class="mt-0.5 text-xs text-ink-muted">{{ t(alert.detail) }}</p>
+              <p v-if="alert.protocol" class="mt-1 font-mono text-xs text-primary">→ {{ alert.protocol }}</p>
+            </li>
+          </ul>
         </UiCard>
 
-        <UiCard title="Protocoles exécutés" :icon="ListChecks">
-          <ul class="space-y-2.5">
+        <UiCard :title="t('Protocoles exécutés')" :icon="ListChecks">
+          <p v-if="record.runs.length === 0" class="text-sm text-ink-muted">
+            {{ t('Aucun protocole lancé.') }}
+          </p>
+          <ul v-else class="space-y-2.5">
             <li
-              v-for="(run, index) in RUNS"
-              :key="`${run.code}-${index}`"
+              v-for="run in record.runs"
+              :key="run.id"
               class="flex items-center gap-3 rounded-xl border border-divider p-3"
             >
               <span class="flex size-8 items-center justify-center rounded-lg bg-primary-soft text-primary">
@@ -238,7 +162,9 @@ const note = ref('')
               </span>
               <span class="flex-1 text-sm">
                 <span class="block font-mono text-xs font-semibold">{{ run.code }}</span>
-                <span class="block text-xs text-ink-muted">{{ run.status }}</span>
+                <span class="block text-xs text-ink-muted">{{
+                  t(RUN_STATUS[run.status] ?? run.status)
+                }}</span>
               </span>
               <span
                 v-if="run.efficacy !== null"
@@ -247,7 +173,6 @@ const note = ref('')
               >
                 {{ Math.round(run.efficacy * 100) }} %
               </span>
-              <Check v-else :size="16" class="text-ink-faint" aria-label="En cours" />
             </li>
           </ul>
         </UiCard>

@@ -16,7 +16,7 @@ export default defineNuxtConfig({
   // Backend URL; override with NUXT_PUBLIC_API_BASE (e.g. on the deployed demo).
   runtimeConfig: {
     public: {
-      apiBase: 'http://localhost:8000/api/v1',
+      apiBase: 'http://127.0.0.1:8000/api/v1',
     },
   },
 

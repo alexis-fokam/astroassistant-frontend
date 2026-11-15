@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Check, Delete, Lock, WifiOff } from 'lucide-vue-next'
+import { ArrowRight, Check, Delete, Lock, WifiOff } from 'lucide-vue-next'
 
 /**
- * Pages A-01 / A-02: local profile picker and PIN unlock (spec §7, F9.4).
- * The PIN is checked by the backend (POST /api/v1/auth/login). In demo mode, when the
- * backend is unreachable, any 4-digit code unlocks the selected profile.
+ * Pages A-01 / A-02 : choix du profil local et déverrouillage par PIN (§7, F9.4).
+ * Le PIN est vérifié par le serveur (POST /api/v1/auth/login). Le dernier profil utilisé est
+ * présélectionné, et une session encore valide ouvre directement l'espace (middleware).
+ * En mode démonstration (serveur injoignable), un bouton ouvre l'espace sans PIN.
  */
 definePageMeta({ layout: 'bare' })
 
@@ -12,11 +13,13 @@ const PIN_LENGTH = 4
 const MAX_ATTEMPTS = 3
 
 const { crew, mission, source } = useMissionData()
-const { login } = useAuth()
+const { login, lastProfile } = useAuth()
 const { t } = useI18n()
 useHead({ title: () => t('Connexion') })
 const route = useRoute()
-const selectedCode = ref(crew[1]?.code ?? crew[0]!.code)
+const selectedCode = ref(
+  crew.find((member) => member.code === lastProfile.value)?.code ?? crew[1]?.code ?? crew[0]!.code,
+)
 const pin = ref('')
 const attemptsLeft = ref(MAX_ATTEMPTS)
 const error = ref<string | null>(null)
@@ -38,10 +41,15 @@ function erase() {
   pin.value = pin.value.slice(0, -1)
 }
 
+/** Mode démonstration : pas de serveur pour vérifier un PIN, on entre directement. */
+function enterDemo() {
+  lastProfile.value = selectedCode.value
+  return navigateTo(selected.value.isCmo ? '/cmo' : '/equipage')
+}
+
 async function submit() {
   if (pin.value.length !== PIN_LENGTH || pending.value || attemptsLeft.value <= 0) return
   const home = selected.value.isCmo ? '/cmo' : '/equipage'
-  if (source !== 'api') return navigateTo(home)
   pending.value = true
   error.value = null
   try {
@@ -58,6 +66,10 @@ async function submit() {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (source !== 'api') {
+    if (event.key === 'Enter') enterDemo()
+    return
+  }
   if (/^\d$/.test(event.key)) press(event.key)
   else if (event.key === 'Backspace') erase()
   else if (event.key === 'Enter') submit()
@@ -69,7 +81,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <div class="grid min-h-dvh lg:grid-cols-[minmax(0,560px)_1fr]">
-    <!-- Profile picker -->
+    <!-- Choix du profil -->
     <section class="flex flex-col border-r border-divider bg-surface px-8 py-10 sm:px-14">
       <div class="flex items-center justify-between">
         <BrandLogo :size="36" />
@@ -118,7 +130,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       </div>
     </section>
 
-    <!-- PIN unlock -->
+    <!-- Déverrouillage par PIN -->
     <section
       class="flex items-center justify-center bg-canvas p-6"
       style="background-image: radial-gradient(circle at 50% 35%, rgb(70 182 246 / 0.12), transparent 55%)"
@@ -133,62 +145,73 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </p>
         </div>
 
-        <div class="mt-7 flex justify-center gap-4" aria-live="polite">
-          <span
-            v-for="i in PIN_LENGTH"
-            :key="i"
-            class="size-4 rounded-full border-2 transition-colors"
-            :class="i <= pin.length ? 'border-primary bg-primary' : 'border-line'"
-          />
-          <span class="sr-only">{{
-            t('{n} chiffres saisis sur {total}', { n: pin.length, total: PIN_LENGTH })
-          }}</span>
-        </div>
+        <UiButton
+          v-if="source !== 'api'"
+          class="mt-7 w-full"
+          size="lg"
+          :icon-right="ArrowRight"
+          @click="enterDemo"
+        >
+          {{ t('Ouvrir l’espace de {name}', { name: selected.firstName }) }}
+        </UiButton>
+        <template v-else>
+          <div class="mt-7 flex justify-center gap-4" aria-live="polite">
+            <span
+              v-for="i in PIN_LENGTH"
+              :key="i"
+              class="size-4 rounded-full border-2 transition-colors"
+              :class="i <= pin.length ? 'border-primary bg-primary' : 'border-line'"
+            />
+            <span class="sr-only">{{
+              t('{n} chiffres saisis sur {total}', { n: pin.length, total: PIN_LENGTH })
+            }}</span>
+          </div>
 
-        <div class="mt-7 grid grid-cols-3 gap-3">
-          <button
-            v-for="digit in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
-            :key="digit"
-            type="button"
-            class="h-16 rounded-xl border border-divider bg-subtle font-display text-2xl font-semibold hover:bg-divider"
-            @click="press(digit)"
-          >
-            {{ digit }}
-          </button>
-          <button
-            type="button"
-            class="flex h-16 items-center justify-center rounded-xl text-ink-muted hover:bg-subtle"
-            :aria-label="t('Effacer')"
-            @click="erase"
-          >
-            <Delete :size="24" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="h-16 rounded-xl border border-divider bg-subtle font-display text-2xl font-semibold hover:bg-divider"
-            @click="press('0')"
-          >
-            0
-          </button>
-          <button
-            type="button"
-            class="flex h-16 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-hover disabled:opacity-40"
-            :disabled="pin.length !== PIN_LENGTH"
-            :aria-label="t('Déverrouiller')"
-            @click="submit"
-          >
-            <Check :size="26" :stroke-width="2.5" aria-hidden="true" />
-          </button>
-        </div>
+          <div class="mt-7 grid grid-cols-3 gap-3">
+            <button
+              v-for="digit in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              :key="digit"
+              type="button"
+              class="h-16 rounded-xl border border-divider bg-subtle font-display text-2xl font-semibold hover:bg-divider"
+              @click="press(digit)"
+            >
+              {{ digit }}
+            </button>
+            <button
+              type="button"
+              class="flex h-16 items-center justify-center rounded-xl text-ink-muted hover:bg-subtle"
+              :aria-label="t('Effacer')"
+              @click="erase"
+            >
+              <Delete :size="24" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="h-16 rounded-xl border border-divider bg-subtle font-display text-2xl font-semibold hover:bg-divider"
+              @click="press('0')"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              class="flex h-16 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-hover disabled:opacity-40"
+              :disabled="pin.length !== PIN_LENGTH"
+              :aria-label="t('Déverrouiller')"
+              @click="submit"
+            >
+              <Check :size="26" :stroke-width="2.5" aria-hidden="true" />
+            </button>
+          </div>
 
-        <p v-if="error" class="mt-5 text-center text-sm font-medium text-critical" role="alert">
-          {{ t(error) }}
-        </p>
-        <p class="mt-3 text-center text-xs text-ink-muted">
-          {{ t('{n} tentatives restantes, puis verrouillage 5 min.', { n: attemptsLeft }) }}
-        </p>
-        <p v-if="source !== 'api'" class="mt-1 text-center text-xs text-ink-muted">
-          {{ t('Mode démonstration : serveur injoignable, n’importe quel code à 4 chiffres.') }}
+          <p v-if="error" class="mt-5 text-center text-sm font-medium text-critical" role="alert">
+            {{ t(error) }}
+          </p>
+          <p class="mt-3 text-center text-xs text-ink-muted">
+            {{ t('{n} tentatives restantes, puis verrouillage 5 min.', { n: attemptsLeft }) }}
+          </p>
+        </template>
+        <p v-if="source !== 'api'" class="mt-3 text-center text-xs text-ink-muted">
+          {{ t('Mode démonstration : serveur injoignable, accès direct sans PIN.') }}
         </p>
       </div>
     </section>

@@ -1,28 +1,52 @@
 <script setup lang="ts">
-import { ArrowUpDown, Filter, History, Play, Search, Sparkles } from 'lucide-vue-next'
+import { History, Play, Search, Sparkles } from 'lucide-vue-next'
 import { DOMAINS } from '~/constants/domains'
 import { LEVEL_HEX } from '~/constants/levels'
 import type { RunProgress } from '~/mocks/protocolRuns'
 
 /**
- * Page E-07: my protocols (spec F4, Figma "E-07 · Mes protocoles").
- * Every WARNING / CRITICAL alert offers at least one protocol (F4 acceptance criterion).
+ * Page E-07 : mes protocoles (F4, Figma « E-07 »).
+ * Chaque alerte WARNING ou CRITICAL propose au moins un protocole (critère d'acceptation F4).
+ * Le bandeau « Recommandé » suit l'alerte ouverte de l'astronaute ; la liste se filtre et
+ * se recherche.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Mes protocoles' })
+const { t } = useI18n()
+useHead({ title: () => t('Mes protocoles') })
 
-const { protocols } = useMissionData()
+const { protocols, alerts, currentCrew, findProtocol } = useMissionData()
 const { runs } = await useProtocolRunsScreen()
 
-const filter = ref('active')
-const FILTERS = [
-  { value: 'active', label: `Actifs · ${runs.value.filter((r) => r.progress !== 'done').length}` },
-  { value: 'done', label: 'Terminés' },
-  { value: 'all', label: 'Tous' },
-]
+const filter = ref<'active' | 'done' | 'all'>('active')
+const FILTERS = computed(() => [
+  {
+    value: 'active',
+    label: t('Actifs · {n}', { n: runs.value.filter((r) => r.progress !== 'done').length }),
+  },
+  { value: 'done', label: t('Terminés') },
+  { value: 'all', label: t('Tous') },
+])
+const query = ref('')
+const matches = (run: { title: string; code: string; trigger: string }) =>
+  `${run.title} ${run.code} ${run.trigger}`.toLowerCase().includes(query.value.trim().toLowerCase())
 
-const pending = computed(() => runs.value.filter((run) => run.progress !== 'done'))
-const done = computed(() => runs.value.filter((run) => run.progress === 'done'))
+const pending = computed(() => runs.value.filter((run) => run.progress !== 'done' && matches(run)))
+const done = computed(() => runs.value.filter((run) => run.progress === 'done' && matches(run)))
+
+// Protocole recommandé maintenant : celui de l'alerte ouverte la plus grave de l'astronaute.
+const recommended = computed(() => {
+  const mine = alerts.filter((a) => a.crew === currentCrew.code && a.status !== 'resolved' && a.protocol)
+  const alert = mine.find((a) => a.level === 'critical') ?? mine[0]
+  if (!alert) return null
+  const protocol = findProtocol(alert.protocol!)
+  return {
+    code: alert.protocol!,
+    title: protocol?.title ?? alert.protocol!,
+    minutes: protocol?.minutes ?? null,
+    reason: alert.title,
+    domain: alert.domain,
+  }
+})
 
 const PROGRESS: Record<RunProgress, { label: string; classes: string }> = {
   in_progress: { label: 'En cours', classes: 'bg-primary text-white' },
@@ -34,20 +58,22 @@ const COLUMNS = ['Protocole', 'Déclencheur', 'Gravité', 'Durée', 'Avancement'
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-[28px] font-semibold">Mes protocoles</h1>
-        <p class="mt-0.5 text-sm text-ink-muted">
-          Chaque alerte WARNING ou CRITICAL propose au moins un protocole (F4)
-        </p>
-      </div>
-      <UiButton variant="secondary" size="sm" :icon="History">Historique</UiButton>
-    </div>
+  <div class="space-y-8">
+    <UiPageHeader
+      :title="t('Mes protocoles')"
+      :subtitle="t('Chaque alerte WARNING ou CRITICAL propose au moins un protocole (F4)')"
+    >
+      <template #actions>
+        <UiButton variant="secondary" size="sm" :icon="History" @click="filter = 'done'">{{
+          t('Historique')
+        }}</UiButton>
+      </template>
+    </UiPageHeader>
 
-    <!-- Recommended now -->
+    <!-- Recommandé maintenant, d'après l'alerte ouverte -->
     <section
-      class="flex flex-wrap items-center gap-5 rounded-2xl border border-brand-lavender/60 p-6"
+      v-if="recommended"
+      class="flex flex-wrap items-center gap-5 rounded-2xl border border-brand-lavender/60 p-6 lg:p-8"
       style="background-image: linear-gradient(100deg, #f1eafd 0%, #f5f9ff 60%, #ffffff 100%)"
     >
       <span class="flex size-14 items-center justify-center rounded-2xl bg-ai-gradient text-white">
@@ -55,25 +81,43 @@ const COLUMNS = ['Protocole', 'Déclencheur', 'Gravité', 'Durée', 'Avancement'
       </span>
       <div class="min-w-0 flex-1">
         <p class="text-[11px] font-semibold tracking-wider text-accent uppercase">
-          Recommandé par Astro · maintenant
+          {{ t('Recommandé par le moteur IA · maintenant') }}
         </p>
-        <h2 class="mt-1 text-xl font-semibold">Respiration guidée & récupération du sommeil</h2>
+        <h2 class="mt-1 text-xl font-semibold">{{ t(recommended.title) }}</h2>
         <p class="mt-0.5 text-sm text-ink-muted">
-          PRT-STRESS-01 · 9 minutes · déclenché par la baisse de votre VFC (65 % de votre baseline)
+          {{ recommended.code
+          }}<template v-if="recommended.minutes"> · {{ recommended.minutes }} min</template> ·
+          {{ t('déclenché par : {reason}', { reason: t(recommended.reason) }) }}
         </p>
       </div>
       <div class="flex gap-2">
-        <UiButton :icon="Play" to="/equipage/protocoles/PRT-STRESS-01">Reprendre · étape 2/5</UiButton>
-        <UiButton variant="secondary" to="/equipage/systemes/behavioral">Pourquoi ?</UiButton>
+        <UiButton :icon="Play" :to="`/equipage/protocoles/${recommended.code}`">{{
+          t('Ouvrir le protocole')
+        }}</UiButton>
+        <UiButton variant="secondary" :to="`/equipage/systemes/${recommended.domain}`">{{
+          t('Pourquoi ?')
+        }}</UiButton>
       </div>
     </section>
 
-    <!-- Board toolbar -->
-    <div class="flex flex-wrap items-center gap-1">
-      <UiButton variant="ghost" size="sm" :icon="Search">Rechercher</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="Filter">Filtrer</UiButton>
-      <UiButton variant="ghost" size="sm" :icon="ArrowUpDown">Trier</UiButton>
-      <UiSegmented v-model="filter" class="ml-auto" :options="FILTERS" size="sm" label="Afficher" />
+    <!-- Recherche et filtre -->
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative min-w-56 flex-1">
+        <Search
+          :size="16"
+          class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint"
+          aria-hidden="true"
+        />
+        <label for="run-search" class="sr-only">{{ t('Rechercher un protocole') }}</label>
+        <input
+          id="run-search"
+          v-model="query"
+          type="search"
+          :placeholder="t('Rechercher un protocole, un déclencheur…')"
+          class="h-10 w-full rounded-xl border border-line bg-surface pr-3 pl-9 text-sm outline-none focus:border-primary"
+        />
+      </div>
+      <UiSegmented v-model="filter" :options="FILTERS" size="sm" :label="t('Afficher')" />
     </div>
 
     <BoardGroup

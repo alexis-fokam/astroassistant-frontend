@@ -1,10 +1,9 @@
 import type { Component } from 'vue'
 import {
+  Archive,
   Box,
   CalendarDays,
   ClipboardCheck,
-  Code,
-  Dumbbell,
   Ellipsis,
   FolderHeart,
   HeartPulse,
@@ -12,7 +11,6 @@ import {
   Layers,
   LayoutDashboard,
   ListChecks,
-  Moon,
   Pill,
   RadioTower,
   Shield,
@@ -50,14 +48,12 @@ export const APP_MODULES: AppModule[] = [
       { to: '/equipage/check-in', label: 'Check-in', icon: ClipboardCheck, match: '/equipage/check-in' },
       { to: '/equipage/protocoles', label: 'Protocoles', icon: ListChecks, match: '/equipage/protocoles' },
       { to: '/equipage/dosimetrie', label: 'Dosimétrie', icon: Sun },
-      { to: '/equipage/exercices', label: 'Exercices', icon: Dumbbell },
-      { to: '/equipage/sommeil', label: 'Sommeil', icon: Moon },
       { to: '/equipage/pvt', label: 'Test PVT', icon: Timer },
       {
         to: '/equipage/messages',
         label: 'Plus',
         icon: Ellipsis,
-        match: ['/equipage/messages', '/equipage/parametres'],
+        match: '/equipage/messages',
       },
     ],
   },
@@ -72,11 +68,12 @@ export const APP_MODULES: AppModule[] = [
         to: '/cmo/equipage/AV-02',
         label: 'Dossiers médicaux',
         icon: FolderHeart,
-        match: ['/cmo/equipage', '/cmo/consultation'],
+        match: '/cmo/equipage',
       },
       { to: '/cmo/protocoles', label: 'Protocoles', icon: ListChecks },
       { to: '/cmo/pharmacie', label: 'Pharmacie', icon: Pill },
       { to: '/cmo/audit', label: 'Journal d’audit', icon: Shield },
+      { to: '/cmo/archives', label: 'Archives', icon: Archive },
     ],
   },
   {
@@ -97,7 +94,6 @@ export const APP_MODULES: AppModule[] = [
     items: [
       { to: '/simulation', label: 'Scénarios', icon: Layers },
       { to: '/simulation#controle', label: 'Panneau de contrôle', icon: SlidersHorizontal },
-      { to: '/simulation/journal', label: 'Journal moteur', icon: Code },
     ],
   },
 ]

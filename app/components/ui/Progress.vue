@@ -16,7 +16,7 @@ withDefaults(defineProps<{ value: number; barClass?: string; height?: number; la
     :style="{ height: `${height}px` }"
   >
     <div
-      class="h-full rounded-full"
+      class="progress-grow h-full rounded-full"
       :class="barClass"
       :style="{ width: `${Math.min(100, Math.max(0, value))}%` }"
     />

@@ -82,6 +82,8 @@ export interface ApiAlert {
   recommended_protocol: string | null
   triggered_at: string
   acknowledged_by: string | null
+  acknowledged_at?: string | null
+  resolved_at?: string | null
 }
 
 export interface ApiCrewStatus {
@@ -238,6 +240,8 @@ export interface ApiRunListItem {
   expected_duration_min: number | null
   trigger: string | null
   efficacy: number | null
+  started_at?: string
+  ended_at?: string | null
 }
 
 export interface ApiDomainHistory {
@@ -248,4 +252,28 @@ export interface ApiDomainHistory {
   factors: ApiFactor[]
   rules: string[]
   history: { t: string; score: number; level: ApiLevel }[]
+}
+
+/** Exécution passée du simulateur (GET /sim/runs). */
+export interface ApiSimRun {
+  id: number
+  scenario_code: string
+  crew_code: string | null
+  status: 'running' | 'completed' | 'aborted'
+  seed: number
+  speed_factor: number
+  started_at: string
+  ended_at: string | null
+}
+
+/** Urgence déclenchée à bord (GET /emergency). */
+export interface ApiEmergency {
+  id: number
+  patient_code: string | null
+  triggered_by_code: string | null
+  status: string
+  triggered_at: string
+  outcome: string | null
+  closed_at: string | null
+  summary: string | null
 }

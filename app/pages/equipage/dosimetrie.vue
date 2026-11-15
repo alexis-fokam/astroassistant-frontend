@@ -14,31 +14,36 @@ import { LEVEL_HEX } from '~/constants/levels'
 import { buildSeries } from '~/utils/series'
 
 /**
- * Pages E-10 / E-11: dosimetry and space weather during a solar particle event
- * (spec F5, scenario S3, Figma "E-10/E-11 · Dosimétrie & alerte SPE").
+ * Pages E-10 / E-11 : dosimétrie et météo spatiale pendant un événement à particules
+ * solaires (F5, scénario S3, Figma « E-10/E-11 »). Le compte à rebours s'arrête quand
+ * l'astronaute confirme être à l'abri.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Dosimétrie' })
+const { t } = useI18n()
+useHead({ title: () => t('Dosimétrie') })
 
-// Shelter countdown (spec F5.4), starting at 08:42.
+// Compte à rebours d'abri (F5.4), à partir de 08:42.
 const shelterSeconds = ref(8 * 60 + 42)
+const shelteredAt = ref<string | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   timer = setInterval(() => {
-    if (shelterSeconds.value > 0) shelterSeconds.value -= 1
+    if (shelterSeconds.value > 0 && !shelteredAt.value) shelterSeconds.value -= 1
   }, 1000)
 })
+function confirmShelter() {
+  shelteredAt.value = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
 onBeforeUnmount(() => clearInterval(timer))
 const countdown = computed(
   () =>
     `${String(Math.floor(shelterSeconds.value / 60)).padStart(2, '0')}:${String(shelterSeconds.value % 60).padStart(2, '0')}`,
 )
 
-const range = ref('mission')
+const range = ref<'24h' | '72h'>('72h')
 const RANGES = [
   { value: '24h', label: '24 h' },
-  { value: '7d', label: '7 j' },
-  { value: 'mission', label: 'Mission' },
+  { value: '72h', label: '72 h' },
 ]
 
 // Demo values (Figma frame), replaced by the dosimeter data when the backend answers.
@@ -77,6 +82,17 @@ const fr = (value: number, digits = 0) =>
   value.toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 const careerPct = fr((careerDose / CAREER_LIMIT) * 100, 1)
 const projectedEnd = fr(doseProjection.at(-1) ?? 0)
+// Série affichée selon la période choisie, et repères de l'axe horizontal.
+const shownDose = computed(() => (range.value === '24h' ? cumulativeDose.slice(-24) : cumulativeDose))
+const doseLabels = computed(() => {
+  const measured = shownDose.value.length
+  return (i: number) =>
+    i < measured ? hoursAgoLabels(measured, 1, t)(i) : t('Projection · +{n} h', { n: i - measured + 1 })
+})
+const doseRateLabels = hoursAgoLabels(doseRate.length, 1, t)
+const missionDose = fr(cumulativeDose.at(-1) ?? 0, 1)
+const lastDayDose = fr((cumulativeDose.at(-1) ?? 0) - (cumulativeDose.at(-25) ?? cumulativeDose[0] ?? 0), 1)
+const currentRate = fr(doseRate.at(-1) ?? 0, 2)
 const doseLabel = `Dose cumulée de ${fr(cumulativeDose[0] ?? 0)} à ${fr(cumulativeDose.at(-1) ?? 0)} mSv, projection à ${projectedEnd} mSv en fin de mission`
 const gaugeCircumference = 2 * Math.PI * 70
 
@@ -106,7 +122,7 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <!-- SPE alert and shelter countdown (spec F5.4) -->
     <section
       class="grid items-center gap-6 rounded-2xl border border-critical/40 p-6 lg:grid-cols-[1fr_auto]"
@@ -129,7 +145,17 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
             été prévenu.
           </p>
           <div class="mt-4 flex flex-wrap gap-3">
-            <UiButton variant="danger" :icon="Check">Je suis à l’abri</UiButton>
+            <UiButton v-if="!shelteredAt" variant="danger" :icon="Check" @click="confirmShelter">
+              {{ t('Je suis à l’abri') }}
+            </UiButton>
+            <span
+              v-else
+              class="flex items-center gap-2 rounded-xl bg-nominal-soft px-4 py-2 text-sm font-semibold text-nominal-ink"
+              role="status"
+            >
+              <Check :size="18" aria-hidden="true" />
+              {{ t('À l’abri confirmé à {time}', { time: shelteredAt }) }}
+            </span>
             <UiButton variant="secondary" :icon="ListChecks" to="/equipage/protocoles/PRT-RAD-02">
               Ouvrir PRT-RAD-02
             </UiButton>
@@ -164,16 +190,20 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
           </span>
         </div>
         <ChartsLineChart
-          :values="cumulativeDose"
+          :values="shownDose"
           :projection="doseProjection"
           color="#2f86eb"
           :height="230"
-          :min="40"
-          :max="150"
+          unit="mSv"
+          :digits="2"
+          :x-labels="doseLabels"
           :label="doseLabel"
         />
         <div class="mt-2 flex justify-between text-xs text-ink-muted">
-          <span>J+0</span><span>J+50</span><span>J+100</span><span>Aujourd’hui</span><span>Fin J+200</span>
+          <span>{{ t(range === '24h' ? 'Il y a 24 h' : 'Il y a 72 h') }}</span><span>{{
+            t('Maintenant')
+          }}</span
+          ><span>{{ t('Fin de mission') }}</span>
         </div>
       </UiCard>
 
@@ -201,11 +231,11 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
         <dl class="mt-4 space-y-2 border-t border-divider pt-4 text-sm">
           <div class="flex justify-between">
             <dt class="text-ink-muted">Dose mission</dt>
-            <dd class="font-semibold tabular">89,1 mSv</dd>
+            <dd class="font-semibold tabular">{{ missionDose }} mSv</dd>
           </div>
           <div class="flex justify-between">
-            <dt class="text-ink-muted">Dont événement en cours</dt>
-            <dd class="font-semibold text-critical-ink tabular">+2,7 mSv</dd>
+            <dt class="text-ink-muted">{{ t('Sur les dernières 24 h') }}</dt>
+            <dd class="font-semibold text-critical-ink tabular">+{{ lastDayDose }} mSv</dd>
           </div>
           <div class="flex justify-between">
             <dt class="text-ink-muted">Projection fin de mission</dt>
@@ -219,7 +249,7 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
       <UiCard title="Débit de dose" :icon="Activity">
         <template #actions><UiStatusBadge level="critical" /></template>
         <p class="font-display text-3xl font-semibold text-critical-ink" data-vital>
-          1,82 <span class="font-sans text-sm text-ink-muted">mSv/h</span>
+          {{ currentRate }} <span class="font-sans text-sm text-ink-muted">mSv/h</span>
         </p>
         <ChartsLineChart
           class="mt-3"
@@ -227,8 +257,10 @@ const EVENT_INK = { critical: 'text-critical-ink', warning: 'text-warning-ink', 
           :color="LEVEL_HEX.critical"
           :height="130"
           :min="0"
-          :max="2"
-          label="Débit de dose stable puis pic à 1,82 millisievert par heure"
+          unit="mSv/h"
+          :digits="3"
+          :x-labels="doseRateLabels"
+          :label="t('Débit de dose : {rate} millisievert par heure actuellement', { rate: currentRate })"
         />
       </UiCard>
 

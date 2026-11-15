@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Signed-in application shell: header with module navigation, page body, floating assistant.
-// Query overlays: `?urgence=recue` shows the alert other crew members receive (U-03),
-// `?visite=N` shows step N of the jury guided tour (D-04).
+// Coquille de l'application connectée : en-tête et navigation du module, page, panneau
+// « Expliquer mon statut ». Paramètres d'URL : `?urgence=recue` affiche l'alerte reçue par
+// le reste de l'équipage (U-03), `?visite=N` l'étape N de la visite guidée du jury (D-04).
 const route = useRoute()
 const router = useRouter()
 
@@ -16,7 +16,7 @@ function dismissEmergency() {
 <template>
   <div class="min-h-dvh pb-24">
     <ShellHeader />
-    <main class="mx-auto max-w-[1440px] px-6 py-6">
+    <main class="page-rise mx-auto max-w-[1440px] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <slot />
     </main>
     <ShellAskAstro />

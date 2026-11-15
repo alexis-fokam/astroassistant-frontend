@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { Bell, CircleHelp, Inbox, LayoutGrid, LogOut, Search, Settings, WifiOff } from 'lucide-vue-next'
+import { Bell, Inbox, LogOut, WifiOff } from 'lucide-vue-next'
 import { APP_MODULES } from '~/constants/navigation'
 import { isNavItemActive, moduleForPath } from '~/utils/navigation'
 
-// Horizontal app header (Figma E-01): brand, module switcher, search, notifications,
-// current profile and emergency button; second row holds the module navigation.
+// En-tête de l'application (Figma E-01) : logo, modules, alertes et messages, profil courant
+// et bouton d'urgence ; la deuxième ligne porte la navigation du module.
 const route = useRoute()
-const { mission, currentCrew, findCrew } = useMissionData()
+const { mission, currentCrew, findCrew, alerts } = useMissionData()
 const { isLoggedIn, logout } = useAuth()
 const { t } = useI18n()
 
 const currentModule = computed(() => moduleForPath(route.path))
 
-// Profile shown in the header: the CMO in the medical module, the jury in demo mode,
-// otherwise the signed-in astronaut.
+// Profil affiché : le médecin de bord dans le module médical, le jury en démo,
+// sinon l'astronaute connecté.
 const user = computed(() => {
   if (currentModule.value.key === 'simulation') {
     return { name: t('Jury'), initials: 'JU', tone: 1, role: t('Mode démonstration') }
@@ -27,6 +27,9 @@ const user = computed(() => {
     role: `${member.code} · ${role}`,
   }
 })
+
+// Alertes non résolues (vraies données du moteur) ; la cloche mène à la file d'alertes.
+const openAlerts = computed(() => alerts.filter((a) => a.status !== 'resolved').length)
 </script>
 
 <template>
@@ -51,58 +54,25 @@ const user = computed(() => {
         </NuxtLink>
       </nav>
 
-      <button
-        type="button"
-        class="hidden h-9 w-56 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm text-ink-muted hover:border-ink-faint lg:flex"
-      >
-        <Search :size="16" :stroke-width="1.7" aria-hidden="true" />
-        <span>{{ t('Rechercher') }}</span>
-        <kbd class="ml-auto rounded bg-subtle px-1.5 text-[11px] font-medium">Ctrl K</kbd>
-      </button>
-
       <div class="ml-auto flex items-center gap-1">
-        <button
-          type="button"
+        <NuxtLink
+          to="/notifications"
           class="relative flex size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle"
-          aria-label="Alertes, 3 non lues"
+          :aria-label="t('Alertes, {n} non résolues', { n: openAlerts })"
         >
           <Bell :size="20" :stroke-width="1.7" aria-hidden="true" />
           <span
+            v-if="openAlerts"
             class="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-critical text-[10px] font-bold text-white"
-            >3</span
+            >{{ openAlerts }}</span
           >
-        </button>
-        <button
-          type="button"
-          class="relative flex size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle"
-          aria-label="Messages du sol, 1 non lu"
+        </NuxtLink>
+        <NuxtLink
+          to="/equipage/messages"
+          class="flex size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle"
+          :aria-label="t('Messages du sol')"
         >
           <Inbox :size="20" :stroke-width="1.7" aria-hidden="true" />
-          <span
-            class="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white"
-            >1</span
-          >
-        </button>
-        <button
-          type="button"
-          class="hidden size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle sm:flex"
-          aria-label="Aide"
-        >
-          <CircleHelp :size="20" :stroke-width="1.7" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="hidden size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle sm:flex"
-          :aria-label="t('Modules et outils')"
-        >
-          <LayoutGrid :size="20" :stroke-width="1.7" aria-hidden="true" />
-        </button>
-        <NuxtLink
-          to="/equipage/parametres"
-          class="hidden size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle sm:flex"
-          :aria-label="t('Paramètres')"
-        >
-          <Settings :size="20" :stroke-width="1.7" aria-hidden="true" />
         </NuxtLink>
 
         <UiLanguageSwitch class="ml-1" />

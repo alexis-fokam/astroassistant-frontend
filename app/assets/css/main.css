@@ -160,3 +160,87 @@
     }
   }
 }
+
+/* ------------------------------------------------------------------ animations d'entrée
+   Toutes s'arrêtent avec « réduire les animations » (règle prefers-reduced-motion plus haut). */
+/* Mouvement seul, sans fondu : si une animation ne joue pas (onglet en arrière-plan,
+   capture vidéo), le contenu reste toujours visible. */
+@keyframes rise {
+  from {
+    transform: translateY(14px);
+  }
+}
+@keyframes reveal-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
+@keyframes soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(204 48 73 / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(204 48 73 / 0);
+  }
+}
+
+/* Les blocs d'une page montent l'un après l'autre (layout « app » et site public). */
+.page-rise > * > * {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.page-rise > * > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.page-rise > * > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.page-rise > * > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.page-rise > * > *:nth-child(5) {
+  animation-delay: 240ms;
+}
+.page-rise > * > *:nth-child(n + 6) {
+  animation-delay: 300ms;
+}
+
+/* Courbes : dessinées de gauche à droite ; barres : montent depuis zéro. */
+.chart-reveal {
+  transform-box: fill-box;
+  transform-origin: left;
+  animation: reveal-x 0.9s cubic-bezier(0.3, 0.6, 0.2, 1) both;
+}
+.chart-bar {
+  transform-origin: bottom;
+  animation: grow-y 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.progress-grow {
+  transform-origin: left;
+  animation: reveal-x 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.ring-draw {
+  animation: ring-draw 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+/* Un statut critique respire doucement pour attirer l'œil sans clignoter. */
+.badge-critical {
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* Graphique sélectionné au clavier : cadre discret. */
+.chart-host:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 8px;
+}

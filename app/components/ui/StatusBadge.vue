@@ -25,7 +25,11 @@ const ICON_SIZES = { sm: 13, md: 15, lg: 18 }
   <span
     role="status"
     class="inline-flex shrink-0 items-center rounded-full font-bold tracking-wide whitespace-nowrap"
-    :class="[variant === 'solid' ? style.solid : style.soft, SIZES[size]]"
+    :class="[
+      variant === 'solid' ? style.solid : style.soft,
+      SIZES[size],
+      level === 'critical' ? 'badge-critical' : '',
+    ]"
   >
     <component :is="style.icon" :size="ICON_SIZES[size]" :stroke-width="2.4" aria-hidden="true" />
     {{ label ?? style.label }}
