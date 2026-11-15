@@ -54,6 +54,11 @@ const { packets, contactWindows } = await useSyncScreen()
 const TIMELINE_HOURS = 30
 const NOW_HOURS = 14 + 5 / 60
 const toPercent = (hours: number) => `${(hours / TIMELINE_HOURS) * 100}%`
+// Une fenêtre courte reste assez large pour son libellé, sans dépasser le bord droit de la frise.
+const windowBox = (window: { from: number; to: number }) => {
+  const width = Math.max(window.to - window.from, TIMELINE_HOURS * 0.11)
+  return { left: toPercent(Math.min(window.from, TIMELINE_HOURS - width)), width: toPercent(width) }
+}
 const WINDOW_CLASSES = {
   past: 'bg-line text-ink-muted',
   next: 'bg-primary text-white',
@@ -135,9 +140,9 @@ const COLUMNS = ['Priorité', 'SHA-256', 'Taille', 'Mesuré à bord', 'Reçu au 
         <span
           v-for="window in contactWindows"
           :key="window.label"
-          class="absolute inset-y-2 flex items-center justify-center rounded-md text-xs font-medium whitespace-nowrap"
+          class="absolute inset-y-2 flex items-center justify-center overflow-hidden rounded-md px-2 text-xs font-medium whitespace-nowrap"
           :class="WINDOW_CLASSES[window.state]"
-          :style="{ left: toPercent(window.from), width: toPercent(Math.max(window.to - window.from, 2.2)) }"
+          :style="windowBox(window)"
         >
           {{ window.label }}
         </span>
