@@ -108,7 +108,9 @@ onBeforeUnmount(() => clearInterval(poller))
               <th scope="col" class="px-5 py-2 font-medium">{{ t('Mesure') }}</th>
               <th scope="col" class="px-2 py-2 font-medium">{{ t('Valeur') }}</th>
               <th scope="col" class="px-2 py-2 font-medium">{{ t('Tendance') }}</th>
-              <th scope="col" class="px-5 py-2"><span class="sr-only">{{ t('Statut') }}</span></th>
+              <th scope="col" class="px-5 py-2">
+                <span class="sr-only">{{ t('Statut') }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -160,7 +162,9 @@ onBeforeUnmount(() => clearInterval(poller))
               </span>
               <span class="flex-1 text-sm">
                 <span class="block font-mono text-xs font-semibold">{{ run.code }}</span>
-                <span class="block text-xs text-ink-muted">{{ t(RUN_STATUS[run.status] ?? run.status) }}</span>
+                <span class="block text-xs text-ink-muted">{{
+                  t(RUN_STATUS[run.status] ?? run.status)
+                }}</span>
               </span>
               <span
                 v-if="run.efficacy !== null"

@@ -16,12 +16,13 @@ import {
 import type { Component } from 'vue'
 
 /**
- * Page U-04: closing an emergency (spec F12, F14, Figma "U-04 · Clôture de l'urgence (CMO)").
- * The CMO records outcome, actions and observations; the timeline comes from the audit
- * trail and cannot be edited. Closing queues the report for the ground.
+ * Page U-04 : clôture d'une urgence (F12, F14, Figma « U-04 »).
+ * Le médecin de bord note l'issue, les gestes et ses observations ; le brouillon est gardé
+ * sur ce poste jusqu'à la clôture, qui met le rapport en file vers le sol.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Clôturer l’urgence' })
+const { t } = useI18n()
+useHead({ title: () => t('Clôturer l’urgence') })
 
 const { activeEmergency, closeEmergency } = useActions()
 const { data: emergency } = await useAsyncData('closing-emergency', () => activeEmergency().catch(() => null))
@@ -40,6 +41,11 @@ async function close() {
       const done = actions.value.filter((a) => a.done).map((a) => a.label)
       const summary = `${notes.value}\n\nGestes réalisés : ${done.join(', ')}.`
       await closeEmergency(emergency.value.id, OUTCOME_LABELS[outcome.value]!, summary)
+    }
+    try {
+      localStorage.removeItem(DRAFT_KEY)
+    } catch {
+      /* stockage indisponible : rien à effacer */
     }
     await navigateTo('/sol')
   } catch (e) {
@@ -66,6 +72,40 @@ const actions = ref([
 const notes = ref(
   'Tachycardie sinusale probablement liée à une déshydratation et à l’effort. Réhydratation orale, repos 24 h, surveillance FC toutes les heures.',
 )
+
+// Brouillon gardé sur ce poste (navigateur) tant que l'urgence n'est pas clôturée.
+const DRAFT_KEY = 'aa_emergency_draft'
+const draftSavedAt = ref<string | null>(null)
+function saveDraft() {
+  try {
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ outcome: outcome.value, notes: notes.value, actions: actions.value }),
+    )
+    draftSavedAt.value = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  } catch {
+    draftSavedAt.value = null
+  }
+}
+onMounted(() => {
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null')
+    if (draft) {
+      outcome.value = draft.outcome ?? outcome.value
+      notes.value = draft.notes ?? notes.value
+      if (Array.isArray(draft.actions)) actions.value = draft.actions
+    }
+  } catch {
+    /* brouillon illisible : on garde le formulaire par défaut */
+  }
+})
+
+// Résumé construit à partir du formulaire (issue et gestes cochés), sans IA générative.
+const autoSummary = computed(() => {
+  const done = actions.value.filter((a) => a.done).map((a) => a.label.toLowerCase())
+  const issue = OUTCOME_LABELS[outcome.value] ?? outcome.value
+  return t('Urgence {issue}. Gestes réalisés : {done}.', { issue, done: done.join(', ') || '—' })
+})
 
 const SUPPLIES = [
   { icon: Pill, name: 'Oxygène portable', detail: '1 bouteille · 14 min' },
@@ -225,8 +265,7 @@ const TIMELINE: { time: string; text: string; icon: Component; dot: string; ink:
         <p class="flex items-start gap-2.5 rounded-xl bg-accent-soft p-4 text-sm">
           <Sparkles :size="17" class="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
           <span>
-            <b>Résumé proposé par Astro :</b> tachycardie à 128 bpm avec désaturation à 92 %, résolue en 9
-            minutes sous oxygène. Recommande une surveillance horaire pendant 24 h.
+            <b>{{ t('Résumé transmis au sol :') }}</b> {{ autoSummary }}
           </span>
         </p>
       </div>
@@ -235,7 +274,10 @@ const TIMELINE: { time: string; text: string; icon: Component; dot: string; ink:
     <div class="flex flex-wrap gap-3">
       <p v-if="closeError" class="text-sm text-critical-ink" role="alert">{{ closeError }}</p>
       <UiButton variant="danger" :icon="Send" @click="close">Clôturer et transmettre au sol</UiButton>
-      <UiButton variant="secondary">Enregistrer le brouillon</UiButton>
+      <UiButton variant="secondary" @click="saveDraft">{{ t('Enregistrer le brouillon') }}</UiButton>
+      <p v-if="draftSavedAt" class="self-center text-sm text-nominal-ink" role="status">
+        {{ t('Brouillon enregistré à {time}', { time: draftSavedAt }) }}
+      </p>
     </div>
   </div>
 </template>

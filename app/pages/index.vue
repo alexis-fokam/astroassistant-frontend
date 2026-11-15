@@ -9,7 +9,6 @@ import {
   Gauge,
   HeartPulse,
   ListChecks,
-  Microscope,
   Orbit,
   Play,
   Radiation,
@@ -22,18 +21,18 @@ import {
   Sun,
   Users,
 } from 'lucide-vue-next'
-import { buildSeries } from '~/utils/series'
 
-// Public landing page (P-01): problem, solution, NASA data and demo scenarios.
+// Page d'accueil publique (P-01) : scène 3D de l'équipage, problème, solution, données, démo.
 useHead({ title: 'Le médecin de bord intelligent' })
 
 const { scenarios } = useMissionData()
 
+// Chiffres mesurés par l'évaluation du moteur (backend/docs/evaluation.json).
 const KEY_FIGURES = [
-  { value: '100 %', label: 'des fonctions hors ligne' },
-  { value: '< 200 ms', label: 'inférence IA locale' },
-  { value: '< 90 s', label: 'pour le check-in' },
-  { value: '< 3 s', label: 'pour lire son statut' },
+  { value: '100 %', label: 'anomalies détectées (19/19)' },
+  { value: '0', label: 'fausse alerte sur 306 h' },
+  { value: '36 ms', label: 'par analyse IA' },
+  { value: '1,2 Mo', label: 'modèle par astronaute' },
 ]
 
 // The five hazards of human spaceflight (NASA HRP "RIDGE"), spec §2.
@@ -101,109 +100,96 @@ const FEATURES = [
   },
 ]
 
+// Jeux de données réellement utilisés (backend/app/datasets/catalog.py).
 const NASA_SOURCES = [
-  { icon: Microscope, name: 'NASA OSDR', text: 'Ordres de grandeur des effets physiologiques simulés.' },
-  { icon: Satellite, name: 'NASA DONKI', text: 'Éruptions et événements à particules rejoués localement.' },
   {
-    icon: ShieldAlert,
-    name: 'NASA-STD-3001',
-    text: 'Limites d’exposition et exigences de santé de l’équipage.',
+    icon: Radiation,
+    name: 'Curiosity RAD (NASA)',
+    text: '5 117 mesures de dose sur la route de Mars : seuil de tempête.',
   },
-  { icon: Database, name: 'Human Research Program', text: 'Structure des domaines de risque suivis.' },
+  {
+    icon: Satellite,
+    name: 'NASA DONKI',
+    text: '502 éruptions et événements à particules, rejoués localement.',
+  },
+  { icon: Sun, name: 'NOAA GOES', text: 'Flux de protons : alerte précoce dès 10 pfu (échelle S1).' },
+  {
+    icon: Database,
+    name: 'PhysioNet et WESAD',
+    text: 'Données humaines réelles pour vérifier les seuils médicaux.',
+  },
 ]
-
-const PREVIEW_VITALS = [
-  { label: 'FC', value: '72', unit: 'bpm' },
-  { label: 'SpO₂', value: '98', unit: '%' },
-  { label: 'Temp.', value: '36,8', unit: '°C' },
-]
-
-const hrvWeek = buildSeries(40, 49, { noise: 2.5, drift: -17, seed: 7 })
 </script>
 
 <template>
   <div>
-    <!-- Hero -->
-    <section class="relative overflow-hidden">
+    <!-- Hero : scène 3D animée de l'équipage en orbite -->
+    <section class="relative overflow-hidden bg-[#0b1530] text-white">
       <div
-        class="pointer-events-none absolute -top-40 -right-40 size-[560px] rounded-full bg-brand-gradient opacity-15 blur-3xl"
+        class="pointer-events-none absolute inset-0"
+        style="
+          background:
+            radial-gradient(circle at 75% 45%, rgb(70 182 246 / 0.22), transparent 55%),
+            radial-gradient(circle at 15% 85%, rgb(155 92 242 / 0.25), transparent 50%);
+        "
       />
-      <div class="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-16 pb-20 lg:grid-cols-[1.1fr_1fr]">
-        <div>
+      <div
+        class="relative mx-auto grid max-w-7xl items-center gap-6 px-6 pt-14 pb-16 lg:grid-cols-[1fr_1.15fr]"
+      >
+        <div class="relative z-10">
           <span
-            class="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent"
+            class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-[#c9b3f9]"
           >
             <Sparkles :size="14" aria-hidden="true" /> NASA Space Apps Challenge 2026
           </span>
-          <h1 class="mt-5 text-[44px] leading-[1.08] font-bold md:text-[54px]">
+          <h1 class="mt-5 text-[42px] leading-[1.08] font-bold md:text-[54px]">
             Un médecin de bord intelligent, même à
             <span class="text-brand-gradient">22 minutes</span> de la Terre.
           </h1>
-          <p class="mt-5 max-w-xl text-lg text-ink-muted">
-            Astro Assistant surveille en continu la santé de l’équipage, détecte les anomalies et guide
-            l’astronaute vers la bonne contre-mesure, sans dépendre du sol.
+          <p class="mt-5 max-w-xl text-lg text-[#bfd0ea]">
+            Astro Assistant veille en continu sur la santé de chaque astronaute. Son IA détecte les anomalies,
+            explique pourquoi et propose le bon protocole, sans attendre le sol.
           </p>
           <div class="mt-8 flex flex-wrap gap-3">
             <UiButton size="lg" to="/simulation" :icon="Play">Lancer la démo</UiButton>
-            <UiButton size="lg" variant="secondary" to="/equipage" :icon-right="ArrowRight">
-              Voir le tableau de bord
-            </UiButton>
+            <NuxtLink
+              to="/connexion"
+              class="inline-flex h-12 items-center gap-2 rounded-xl border border-white/25 px-5 font-semibold text-white transition-colors hover:bg-white/10"
+            >
+              Se connecter <ArrowRight :size="18" aria-hidden="true" />
+            </NuxtLink>
           </div>
           <dl class="mt-10 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
-            <div v-for="figure in KEY_FIGURES" :key="figure.label" class="flex flex-col-reverse">
-              <dt class="mt-0.5 text-xs text-ink-muted">{{ figure.label }}</dt>
+            <div v-for="figure in KEY_FIGURES" :key="figure.label" class="flex flex-col-reverse justify-end">
+              <dt class="mt-0.5 text-xs text-[#a9b8d6]">{{ figure.label }}</dt>
               <dd class="font-display text-2xl font-bold tabular">{{ figure.value }}</dd>
             </div>
           </dl>
         </div>
 
-        <!-- Dashboard preview -->
-        <div class="relative">
-          <div class="rounded-2xl border border-divider bg-surface p-5 shadow-raised">
-            <div class="flex items-center justify-between">
-              <span class="flex items-center gap-2 text-sm font-semibold">
-                <UiAvatar initials="LM" :size="28" /> Léo Martin · AV-02
-              </span>
-              <UiStatusBadge level="warning" size="md" />
-            </div>
-            <div class="mt-4 flex items-center gap-5 rounded-xl bg-warning-soft p-4">
-              <ChartsScoreRing :score="54" :size="88" :stroke="9" />
-              <div>
-                <p class="font-display text-lg font-semibold">Vigilance requise</p>
-                <p class="text-sm text-ink-muted">VFC en baisse depuis 3 jours, dette de sommeil de 5,5 h.</p>
+        <div class="relative h-[380px] sm:h-[480px] lg:h-[620px]">
+          <ClientOnly>
+            <HeroAstroScene />
+            <template #fallback>
+              <div class="flex size-full items-center justify-center">
+                <BrandMark :size="180" />
               </div>
-            </div>
-            <div class="mt-4 grid grid-cols-3 gap-3">
-              <div v-for="vital in PREVIEW_VITALS" :key="vital.label" class="rounded-lg bg-subtle p-3">
-                <p class="text-xs text-ink-muted">{{ vital.label }}</p>
-                <p class="font-display text-lg font-semibold tabular">
-                  {{ vital.value }} <span class="text-xs font-normal text-ink-muted">{{ vital.unit }}</span>
-                </p>
-              </div>
-            </div>
-            <div class="mt-4">
-              <p class="mb-1 text-xs font-medium text-ink-muted">VFC · 7 jours</p>
-              <ChartsLineChart
-                :values="hrvWeek"
-                color="#fdab3d"
-                :height="70"
-                :band="[38, 60]"
-                :baseline="48"
-                :min="20"
-                :max="62"
-                label="Variabilité cardiaque sur 7 jours, en baisse"
-              />
-            </div>
+            </template>
+          </ClientOnly>
+          <!-- Étiquettes « en direct » posées sur la scène -->
+          <div
+            class="absolute top-6 left-2 flex items-center gap-2 rounded-xl border border-white/15 bg-[#0b1530]/70 px-3 py-2 text-sm backdrop-blur"
+          >
+            <span class="size-2 animate-pulse rounded-full bg-nominal" aria-hidden="true" />
+            4 astronautes surveillés · hors ligne
           </div>
           <div
-            class="absolute -bottom-5 -left-5 hidden items-center gap-3 rounded-xl border border-divider bg-surface px-4 py-3 shadow-raised md:flex"
+            class="absolute right-2 bottom-8 flex items-center gap-3 rounded-xl border border-white/15 bg-[#0b1530]/70 px-4 py-3 backdrop-blur"
           >
-            <span class="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
-              <ListChecks :size="18" aria-hidden="true" />
-            </span>
+            <HeartPulse :size="20" class="text-warning" aria-hidden="true" />
             <div>
-              <p class="text-sm font-semibold">PRT-STRESS-01 recommandé</p>
-              <p class="text-xs text-ink-muted">Respiration guidée · 9 min</p>
+              <p class="text-sm font-semibold">AV-02 · VFC en baisse</p>
+              <p class="text-xs text-[#a9b8d6]">WARNING · protocole PRT-STRESS-01 proposé</p>
             </div>
           </div>
         </div>

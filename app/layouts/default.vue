@@ -32,32 +32,28 @@ const LANGUAGES = [
         </nav>
         <div class="ml-auto flex items-center gap-2">
           <UiLanguageSwitch />
+          <!-- Un conteneur masque ces liens : la classe « hidden » ne l'emporte pas sur UiButton. -->
+          <div class="hidden items-center gap-2 xl:flex">
+            <UiButton variant="ghost" size="sm" :icon="Code" :to="API_DOCS_URL" class="whitespace-nowrap">
+              {{ t('Docs API') }}
+            </UiButton>
+            <UiButton variant="secondary" size="sm" :icon="Github" :to="REPOSITORY_URL"> GitHub </UiButton>
+          </div>
           <UiButton
-            variant="ghost"
+            variant="ai"
             size="sm"
-            :icon="Code"
-            :to="API_DOCS_URL"
-            class="hidden whitespace-nowrap xl:inline-flex"
+            :icon="Play"
+            to="/simulation"
+            class="whitespace-nowrap"
+            :aria-label="t('Lancer la démo')"
           >
-            {{ t('Docs API') }}
-          </UiButton>
-          <UiButton
-            variant="secondary"
-            size="sm"
-            :icon="Github"
-            :to="REPOSITORY_URL"
-            class="hidden md:inline-flex"
-          >
-            GitHub
-          </UiButton>
-          <UiButton variant="ai" size="sm" :icon="Play" to="/simulation" class="whitespace-nowrap">
-            {{ t('Lancer la démo') }}
+            <span class="hidden sm:inline">{{ t('Lancer la démo') }}</span>
           </UiButton>
         </div>
       </div>
     </header>
 
-    <main class="flex-1"><slot /></main>
+    <main class="page-rise flex-1"><slot /></main>
 
     <footer
       class="border-t-4 bg-ink text-white"

@@ -169,7 +169,6 @@ watch(speed, (value) => {
   }, 400)
 })
 
-
 const DEMO_LOG = (
   [
     { time: '14:05:32', level: 'critical', message: 'alert.created AV-02 radiation CRITICAL' },
@@ -276,7 +275,8 @@ const simClock = computed(() => {
         <li v-for="effect in simState.effects" :key="`${effect.anomaly}-${effect.crew.join()}`">
           <span class="font-medium">{{ t(effect.label) }}</span>
           <span class="text-ink-muted">
-            · {{ effect.crew.join(', ') }} · {{ t('intensité') }} {{ Math.round(effect.strength * 100) }} %</span
+            · {{ effect.crew.join(', ') }} · {{ t('intensité') }}
+            {{ Math.round(effect.strength * 100) }} %</span
           >
         </li>
       </ul>
@@ -319,9 +319,9 @@ const simClock = computed(() => {
           >
             {{ t('En cours') }} · {{ runningClock }}
           </UiButton>
-          <UiButton v-else variant="secondary" size="sm" :icon="Play" @click="inject(scenario.code)"
-            >{{ t('Injecter') }}</UiButton
-          >
+          <UiButton v-else variant="secondary" size="sm" :icon="Play" @click="inject(scenario.code)">{{
+            t('Injecter')
+          }}</UiButton>
         </div>
       </article>
     </section>
@@ -355,7 +355,9 @@ const simClock = computed(() => {
         <ul class="space-y-2.5">
           <li v-for="member in crew" :key="member.code" class="flex items-center gap-3">
             <UiAvatar :initials="member.initials" :tone="member.tone" :size="28" />
-            <span class="flex-1 text-sm">{{ member.code }} · {{ member.firstName }} {{ member.lastName }}</span>
+            <span class="flex-1 text-sm"
+              >{{ member.code }} · {{ member.firstName }} {{ member.lastName }}</span
+            >
             <UiStatusBadge :level="member.level" />
           </li>
         </ul>

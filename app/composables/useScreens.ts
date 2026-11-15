@@ -20,6 +20,8 @@ import type {
   ApiAuditEntry,
   ApiContactWindow,
   ApiCrewStatus,
+  ApiEmergency,
+  ApiSimRun,
   ApiCrewVitals,
   ApiDomainHistory,
   ApiGroundMessage,
@@ -31,7 +33,7 @@ import type {
   ApiRunListItem,
 } from '~/types/api'
 import type { Alert, Domain, Level, VitalSnapshot } from '~/types/domain'
-import { initials, toAlert, toVitals } from '~/utils/apiAdapters'
+import { initials, since, toAlert, toVitals } from '~/utils/apiAdapters'
 
 /** Export packet with its ground reception time (communication delay, ground M4). */
 export type SyncPacket = MockSyncPacket & { receivedAt?: string }
@@ -446,4 +448,249 @@ export async function useCrewRecordScreen(code: Ref<string>) {
     fallback,
   )
   return { record: computed(() => loaded.value.data), live: computed(() => loaded.value.live) }
+}
+
+// ----------------------------------------------------------------- notifications
+export interface NotificationItem {
+  key: string
+  kind: 'alert' | 'message' | 'emergency'
+  level: Level
+  title: string
+  detail: string
+  /** Date ISO, pour trier du plus récent au plus ancien. */
+  at: string
+  /** Heure de mission lisible (« J+142 14:05 ») et ancienneté (« il y a 3 min »). */
+  stamp: string
+  ago: string
+  unread: boolean
+  to: string
+}
+
+/**
+ * Centre de notifications : alertes du moteur encore ouvertes, messages du sol et urgences,
+ * du plus récent au plus ancien. Repli sur les données de démo hors ligne.
+ */
+export async function useNotificationsScreen() {
+  const { api } = useApi()
+  const state = useMissionState()
+  const stamp = missionClock()
+  const fallback = (): NotificationItem[] => [
+    ...ALERTS.filter((a) => a.status !== 'resolved').map<NotificationItem>((a) => ({
+      key: `alert-${a.id}`,
+      kind: 'alert',
+      level: a.level,
+      title: a.title,
+      detail: `${a.crew} · ${a.detail}`,
+      at: '',
+      stamp: a.since,
+      ago: a.since,
+      unread: a.status === 'open',
+      to: `/cmo/equipage/${a.crew}`,
+    })),
+    ...GROUND_MESSAGES.map<NotificationItem>((m) => ({
+      key: `message-${m.id}`,
+      kind: 'message',
+      level: m.isInstruction ? 'warning' : 'info',
+      title: m.subject,
+      detail: `${m.author} · ${m.role}`,
+      at: '',
+      stamp: m.receivedAt,
+      ago: m.receivedAt,
+      unread: m.unread,
+      to: m.isInstruction ? '/sol/consignes' : '/equipage/messages',
+    })),
+  ]
+  const loaded = await loadScreen(
+    'screen-notifications',
+    async () => {
+      const [alerts, messages, emergencies] = await Promise.all([
+        api<ApiAlert[]>('/alerts', { query: { status: 'active', limit: 100 } }),
+        api<ApiGroundMessage[]>('/sync/messages'),
+        api<ApiEmergency[]>('/emergency', { query: { active_only: false } }),
+      ])
+      // « Il y a… » se compte depuis l'heure de mission (la plus récente donnée reçue).
+      const latest = [...alerts.map((a) => a.triggered_at), ...messages.map((m) => m.received_at ?? '')]
+        .filter(Boolean)
+        .sort()
+        .at(-1)
+      const now = latest ? new Date(latest) : new Date()
+      const isCmo = state.value.user?.access_role === 'cmo'
+      const items: NotificationItem[] = [
+        ...alerts.map<NotificationItem>((a) => ({
+          key: `alert-${a.id}`,
+          kind: 'alert',
+          level: a.level,
+          title: a.title,
+          detail: `${a.crew_code} · ${a.message.replace(/\.$/, '')}`,
+          at: a.triggered_at,
+          stamp: stamp(a.triggered_at),
+          ago: since(a.triggered_at, now),
+          unread: a.status === 'open',
+          to: isCmo ? `/cmo/equipage/${a.crew_code}` : '/equipage',
+        })),
+        ...messages.map<NotificationItem>((m) => ({
+          key: `message-${m.id}`,
+          kind: 'message',
+          level: m.is_instruction ? 'warning' : 'info',
+          title: m.subject ?? 'Message du sol',
+          detail: m.author,
+          at: m.received_at ?? m.sent_at ?? '',
+          stamp: stamp(m.received_at),
+          ago: m.received_at ? since(m.received_at, now) : '—',
+          unread: m.read_at === null,
+          to: m.is_instruction ? '/sol/consignes' : '/equipage/messages',
+        })),
+        ...emergencies.map<NotificationItem>((e) => ({
+          key: `emergency-${e.id}`,
+          kind: 'emergency',
+          level: e.status === 'active' ? 'critical' : 'info',
+          title: e.status === 'active' ? 'Urgence en cours' : 'Urgence clôturée',
+          detail: [e.patient_code, e.summary ?? e.outcome].filter(Boolean).join(' · '),
+          at: e.triggered_at,
+          stamp: stamp(e.triggered_at),
+          ago: since(e.triggered_at, now),
+          unread: e.status === 'active',
+          to:
+            e.status === 'active'
+              ? isCmo
+                ? '/cmo/cloture-urgence'
+                : '/urgence'
+              : isCmo
+                ? '/cmo/archives'
+                : '/equipage',
+        })),
+      ]
+      return items.sort((a, b) => b.at.localeCompare(a.at))
+    },
+    fallback,
+  )
+  return { items: computed(() => loaded.value.data), live: computed(() => loaded.value.live) }
+}
+
+// ----------------------------------------------------------------- archives (médecin de bord)
+export interface ArchiveItem {
+  key: string
+  kind: 'alert' | 'protocol' | 'simulation' | 'emergency'
+  level: Level
+  title: string
+  detail: string
+  crew: string | null
+  /** Date ISO de début pour trier ; libellés lisibles du début et de la fin. */
+  at: string
+  start: string
+  end: string
+  status: string
+}
+
+const ARCHIVE_STATUS: Record<string, string> = {
+  completed: 'Terminé',
+  aborted: 'Interrompu',
+  running: 'En cours',
+  in_progress: 'En cours',
+}
+
+/**
+ * Archives du médecin de bord : alertes résolues, protocoles terminés ou interrompus,
+ * urgences clôturées et simulations passées. Repli sur les données de démo hors ligne.
+ */
+export async function useArchivesScreen() {
+  const { api } = useApi()
+  const stamp = missionClock()
+  const fallback = (): ArchiveItem[] => [
+    ...ALERTS.filter((a) => a.status === 'resolved').map<ArchiveItem>((a) => ({
+      key: `alert-${a.id}`,
+      kind: 'alert',
+      level: a.level,
+      title: a.title,
+      detail: a.detail,
+      crew: a.crew,
+      at: '',
+      start: a.since,
+      end: '—',
+      status: 'Résolue',
+    })),
+    ...PROTOCOL_RUNS.filter((r) => r.progress === 'done').map<ArchiveItem>((r, i) => ({
+      key: `run-${i}`,
+      kind: 'protocol',
+      level: r.level,
+      title: `${r.code} · ${r.title}`,
+      detail: r.trigger,
+      crew: null,
+      at: '',
+      start: '—',
+      end: '—',
+      status: r.efficacy !== null ? `Terminé · efficacité ${Math.round(r.efficacy * 100)} %` : 'Terminé',
+    })),
+  ]
+  const loaded = await loadScreen(
+    'screen-archives',
+    async () => {
+      const [alerts, completed, aborted, sims, emergencies] = await Promise.all([
+        api<ApiAlert[]>('/alerts', { query: { status: 'resolved', limit: 200 } }),
+        api<ApiRunListItem[]>('/protocols/runs', { query: { status: 'completed', limit: 100 } }),
+        api<ApiRunListItem[]>('/protocols/runs', { query: { status: 'aborted', limit: 100 } }),
+        api<ApiSimRun[]>('/sim/runs'),
+        api<ApiEmergency[]>('/emergency', { query: { active_only: false } }),
+      ])
+      const items: ArchiveItem[] = [
+        ...alerts.map<ArchiveItem>((a) => ({
+          key: `alert-${a.id}`,
+          kind: 'alert',
+          level: a.level,
+          title: a.title,
+          detail: a.message.replace(/\.$/, ''),
+          crew: a.crew_code,
+          at: a.triggered_at,
+          start: stamp(a.triggered_at),
+          end: stamp(a.resolved_at),
+          status: a.acknowledged_by ? `Résolue · acquittée par ${a.acknowledged_by}` : 'Résolue',
+        })),
+        ...[...completed, ...aborted].map<ArchiveItem>((r) => ({
+          key: `run-${r.id}`,
+          kind: 'protocol',
+          level: r.severity,
+          title: `${r.protocol_code} · ${r.protocol_title}`,
+          detail: r.trigger ?? 'Lancement manuel',
+          crew: r.crew_code,
+          at: r.started_at ?? '',
+          start: stamp(r.started_at),
+          end: stamp(r.ended_at),
+          status:
+            (ARCHIVE_STATUS[r.status] ?? r.status) +
+            (r.efficacy !== null ? ` · efficacité ${Math.round(r.efficacy * 100)} %` : ''),
+        })),
+        ...sims
+          .filter((run) => run.status !== 'running')
+          .map<ArchiveItem>((run) => ({
+            key: `sim-${run.id}`,
+            kind: 'simulation',
+            level: 'info',
+            title: `Scénario ${run.scenario_code}`,
+            detail: `×${run.speed_factor} · graine ${run.seed}`,
+            crew: run.crew_code,
+            at: run.started_at,
+            start: stamp(run.started_at),
+            end: stamp(run.ended_at),
+            status: ARCHIVE_STATUS[run.status] ?? run.status,
+          })),
+        ...emergencies
+          .filter((e) => e.status !== 'active')
+          .map<ArchiveItem>((e) => ({
+            key: `emergency-${e.id}`,
+            kind: 'emergency',
+            level: 'critical',
+            title: 'Urgence clôturée',
+            detail: e.summary ?? e.outcome ?? '—',
+            crew: e.patient_code,
+            at: e.triggered_at,
+            start: stamp(e.triggered_at),
+            end: stamp(e.closed_at),
+            status: e.outcome ?? 'Clôturée',
+          })),
+      ]
+      return items.sort((a, b) => b.at.localeCompare(a.at))
+    },
+    fallback,
+  )
+  return { items: computed(() => loaded.value.data), live: computed(() => loaded.value.live) }
 }

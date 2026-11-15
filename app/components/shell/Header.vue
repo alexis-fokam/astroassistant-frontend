@@ -54,10 +54,9 @@ const openAlerts = computed(() => alerts.filter((a) => a.status !== 'resolved').
         </NuxtLink>
       </nav>
 
-
       <div class="ml-auto flex items-center gap-1">
         <NuxtLink
-          to="/cmo#alertes"
+          to="/notifications"
           class="relative flex size-10 items-center justify-center rounded-lg text-ink-muted hover:bg-subtle"
           :aria-label="t('Alertes, {n} non résolues', { n: openAlerts })"
         >

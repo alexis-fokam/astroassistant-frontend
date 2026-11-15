@@ -5,13 +5,17 @@ import { LEVEL_HEX, LEVEL_STYLES } from '~/constants/levels'
 import type { Domain } from '~/types/domain'
 import { levelFromScore } from '~/utils/health'
 
-/** Page E-02: physiological system detail, one tab per risk domain (spec F1.3 to F1.6, F2.7). */
+/**
+ * Page E-02 : détail d'un système physiologique, un onglet par domaine de risque (F1.3 à F1.6,
+ * F2.7). Les courbes s'exportent en CSV.
+ */
 definePageMeta({
   layout: 'app',
   validate: (route) => DOMAIN_KEYS.includes(route.params.domain as Domain),
 })
 
 const route = useRoute()
+const { t } = useI18n()
 const { currentCrew, currentExplanation } = useMissionData()
 
 const domain = computed(() => route.params.domain as Domain)
@@ -19,14 +23,21 @@ const { detail } = await useSystemScreen(domain)
 const score = computed(() => currentCrew.domains[domain.value])
 const level = computed(() => levelFromScore(score.value))
 
-useHead({ title: () => `Système ${DOMAINS[domain.value].label.toLowerCase()}` })
+useHead({ title: () => t('Système {name}', { name: t(DOMAINS[domain.value].label).toLowerCase() }) })
 
-const range = ref('7d')
-const RANGES = [
-  { value: '24h', label: '24 h' },
-  { value: '7d', label: '7 j' },
-  { value: 'mission', label: 'Mission' },
-]
+/** Export CSV des courbes du système : une ligne par point, une colonne par mesure. */
+function exportCsv() {
+  const charts = detail.value.charts
+  const length = Math.max(0, ...charts.map((c) => c.values.length))
+  const label = hoursAgoLabels(length)
+  downloadFile(
+    `systeme-${domain.value}-${currentCrew.code}.csv`,
+    toCsv([
+      ['Point', ...charts.map((c) => `${c.label} (${c.unit})`)],
+      ...Array.from({ length }, (_, i) => [label(i), ...charts.map((c) => c.values[i] ?? '')]),
+    ]),
+  )
+}
 </script>
 
 <template>
@@ -48,8 +59,7 @@ const RANGES = [
         </NuxtLink>
       </nav>
       <div class="flex items-center gap-3">
-        <UiSegmented v-model="range" :options="RANGES" label="Période" />
-        <UiButton variant="secondary" :icon="Download">Export CSV</UiButton>
+        <UiButton variant="secondary" :icon="Download" @click="exportCsv">{{ t('Export CSV') }}</UiButton>
       </div>
     </div>
 
@@ -97,7 +107,9 @@ const RANGES = [
             :max="chart.max"
             :color="LEVEL_HEX[chart.level]"
             :height="170"
-            :label="`${chart.label} sur la période`"
+            :unit="chart.unit"
+            :x-labels="hoursAgoLabels(chart.values.length, 1, t)"
+            :label="t('{name} sur la période', { name: t(chart.label) })"
           />
         </UiCard>
       </div>

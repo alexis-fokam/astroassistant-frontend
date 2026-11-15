@@ -1,36 +1,34 @@
 <script setup lang="ts">
-import {
-  CalendarPlus,
-  Check,
-  CircleCheck,
-  FileText,
-  MoreHorizontal,
-  RadioTower,
-  Search,
-  Send,
-} from 'lucide-vue-next'
+import { Check, CircleCheck, FileText, RadioTower, Search } from 'lucide-vue-next'
 
 /**
- * Page E-16: messages from the flight surgeon (spec F10.4, Figma "E-16 · Messages du flight surgeon").
- * Replies are queued for export and leave at the next contact window (store-and-forward).
+ * Page E-16 : messages du flight surgeon (F10.4, Figma « E-16 »).
+ * L'accusé de réception est enregistré à bord et part avec le prochain paquet vers le sol.
  */
 definePageMeta({ layout: 'app' })
-useHead({ title: 'Messages du sol' })
+const { t } = useI18n()
+useHead({ title: () => t('Messages du sol') })
 
 const { mission } = useMissionData()
 const { messages: inbox } = await useGroundMessagesScreen()
+const { markMessageRead } = useActions()
+
+// Messages lus pendant la session (le serveur les enregistre aussi quand il répond).
+const readIds = ref<Set<number>>(new Set())
+const isUnread = (message: { id: number; unread: boolean }) =>
+  message.unread && !readIds.value.has(message.id)
 
 const filter = ref('all')
-const FILTERS = [
-  { value: 'all', label: 'Tous' },
-  { value: 'unread', label: `Non lus · ${inbox.value.filter((m) => m.unread).length}` },
-  { value: 'instructions', label: 'Consignes' },
-]
+const FILTERS = computed(() => [
+  { value: 'all', label: t('Tous') },
+  { value: 'unread', label: t('Non lus · {n}', { n: inbox.value.filter(isUnread).length }) },
+  { value: 'instructions', label: t('Consignes') },
+])
 const query = ref('')
 
 const messages = computed(() =>
   inbox.value.filter((message) => {
-    if (filter.value === 'unread' && !message.unread) return false
+    if (filter.value === 'unread' && !isUnread(message)) return false
     if (filter.value === 'instructions' && !message.isInstruction) return false
     const text = `${message.author} ${message.subject}`.toLowerCase()
     return text.includes(query.value.trim().toLowerCase())
@@ -41,28 +39,45 @@ const selected = computed(
   () => inbox.value.find((message) => message.id === selectedId.value) ?? inbox.value[0]!,
 )
 
-/** Splits a paragraph on **bold** markers. */
+const acknowledging = ref(false)
+const ackError = ref<string | null>(null)
+async function acknowledge() {
+  acknowledging.value = true
+  ackError.value = null
+  try {
+    await markMessageRead(selected.value.id)
+    readIds.value = new Set([...readIds.value, selected.value.id])
+  } catch (e) {
+    ackError.value = t((e as Error).message)
+  } finally {
+    acknowledging.value = false
+  }
+}
+
+/** Découpe un paragraphe sur les marqueurs **gras**. */
 function segments(paragraph: string) {
   return paragraph.split('**').map((text, index) => ({ text, bold: index % 2 === 1 }))
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <UiPageHeader
-      title="Messages du sol"
-      :subtitle="`Consignes du flight surgeon reçues à chaque fenêtre de contact · latence ${mission.latencyMin} min`"
-    >
-      <template #actions><UiButton :icon="Send">Rédiger un message</UiButton></template>
-    </UiPageHeader>
+      :title="t('Messages du sol')"
+      :subtitle="
+        t('Consignes du flight surgeon reçues à chaque fenêtre de contact · latence {n} min', {
+          n: mission.latencyMin,
+        })
+      "
+    />
 
     <div class="grid gap-6 lg:grid-cols-[360px_1fr]">
       <section
         class="rounded-2xl border border-divider bg-surface p-4 shadow-card"
-        aria-label="Boîte de réception"
+        :aria-label="t('Boîte de réception')"
       >
         <label class="relative block">
-          <span class="sr-only">Rechercher un message</span>
+          <span class="sr-only">{{ t('Rechercher un message') }}</span>
           <Search
             :size="16"
             class="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted"
@@ -71,7 +86,7 @@ function segments(paragraph: string) {
           <input
             v-model="query"
             type="search"
-            placeholder="Rechercher…"
+            :placeholder="t('Rechercher…')"
             class="h-10 w-full rounded-lg border border-line pr-3 pl-9 text-sm outline-none focus:border-primary"
           />
         </label>
@@ -80,7 +95,7 @@ function segments(paragraph: string) {
           class="mt-3"
           :options="FILTERS"
           size="sm"
-          label="Filtrer les messages"
+          :label="t('Filtrer les messages')"
         />
         <ul class="mt-3 space-y-1">
           <li v-for="message in messages" :key="message.id">
@@ -99,15 +114,15 @@ function segments(paragraph: string) {
                 </span>
                 <span
                   class="block truncate text-sm"
-                  :class="message.unread ? 'font-semibold' : 'text-ink-muted'"
+                  :class="isUnread(message) ? 'font-semibold' : 'text-ink-muted'"
                 >
-                  {{ message.subject }}
+                  {{ t(message.subject) }}
                 </span>
               </span>
               <span
-                v-if="message.unread"
+                v-if="isUnread(message)"
                 class="mt-2 size-2 shrink-0 rounded-full bg-primary"
-                aria-label="Non lu"
+                :aria-label="t('Non lu')"
               />
             </button>
           </li>
@@ -123,20 +138,14 @@ function segments(paragraph: string) {
           <div class="flex-1">
             <p class="font-semibold">{{ selected.author }}</p>
             <p class="text-xs text-ink-muted">
-              {{ selected.role }} · reçu {{ selected.receivedAt }} (envoyé {{ selected.sentAt }})
+              {{ t(selected.role) }} ·
+              {{ t('reçu {at} (envoyé {sent})', { at: selected.receivedAt, sent: selected.sentAt }) }}
             </p>
           </div>
-          <UiStatusBadge v-if="selected.isInstruction" level="info" label="Consigne" />
-          <button
-            type="button"
-            class="rounded-md p-1.5 text-ink-muted hover:bg-subtle"
-            aria-label="Plus d’actions"
-          >
-            <MoreHorizontal :size="18" aria-hidden="true" />
-          </button>
+          <UiStatusBadge v-if="selected.isInstruction" level="info" :label="t('Consigne')" />
         </header>
 
-        <h2 id="message-subject" class="mt-6 text-2xl font-semibold">{{ selected.subject }}</h2>
+        <h2 id="message-subject" class="mt-6 text-2xl font-semibold">{{ t(selected.subject) }}</h2>
         <div class="mt-4 space-y-4 text-[15px]">
           <p v-for="(paragraph, index) in selected.body" :key="index">
             <template v-for="(segment, i) in segments(paragraph)" :key="i">
@@ -153,20 +162,27 @@ function segments(paragraph: string) {
           <FileText :size="20" class="text-primary" aria-hidden="true" />
           <span class="flex-1 text-sm">
             <span class="block font-semibold">{{ selected.attachment }}</span>
-            <span class="block text-xs text-ink-muted">Paquet source · SHA-256 vérifié</span>
+            <span class="block text-xs text-ink-muted">{{ t('Paquet source · SHA-256 vérifié') }}</span>
           </span>
-          <CircleCheck :size="18" class="text-nominal-ink" aria-label="Intégrité vérifiée" />
+          <CircleCheck :size="18" class="text-nominal-ink" :aria-label="t('Intégrité vérifiée')" />
         </div>
 
-        <div class="mt-5 flex flex-wrap gap-2">
-          <UiButton :icon="Check">Accuser réception</UiButton>
-          <UiButton variant="secondary" :icon="CalendarPlus">Ajouter au planning</UiButton>
-          <UiButton variant="secondary" :icon="Send">Répondre</UiButton>
+        <div class="mt-6 flex flex-wrap items-center gap-3">
+          <UiButton v-if="isUnread(selected)" :icon="Check" :disabled="acknowledging" @click="acknowledge">
+            {{ t('Accuser réception') }}
+          </UiButton>
+          <span v-else class="flex items-center gap-2 text-sm font-medium text-nominal-ink" role="status">
+            <CircleCheck :size="18" aria-hidden="true" /> {{ t('Réception confirmée') }}
+          </span>
+          <p v-if="ackError" class="text-sm text-critical-ink" role="alert">{{ ackError }}</p>
         </div>
-        <p class="mt-4 flex items-center gap-2 rounded-xl bg-info-soft px-4 py-3 text-sm text-info-ink">
+        <p class="mt-5 flex items-center gap-2 rounded-xl bg-info-soft px-4 py-3 text-sm text-info-ink">
           <RadioTower :size="16" aria-hidden="true" />
-          Votre réponse sera placée dans la file d’export et partira à la prochaine fenêtre (dans
-          {{ mission.nextContact }}).
+          {{
+            t('L’accusé de réception partira avec le prochain paquet vers le sol (fenêtre dans {time}).', {
+              time: mission.nextContact,
+            })
+          }}
         </p>
       </article>
     </div>

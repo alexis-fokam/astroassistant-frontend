@@ -1,7 +1,7 @@
 /**
- * Write actions of the astronaut and CMO screens (check-in, emergency, protocols, PVT,
- * mission profile). Each one calls the REST API when the backend is reachable and is a
- * no-op in demo mode, so the screens keep working offline for the jury.
+ * Actions d'écriture des écrans équipage et médecin (check-in, urgence, protocoles, PVT,
+ * profil de mission, alertes, pharmacie, liaison sol). Chacune appelle l'API quand le serveur
+ * répond, et ne fait rien en mode démonstration : les écrans restent utilisables hors ligne.
  */
 
 export interface ApiEmergency {
@@ -100,8 +100,49 @@ export function useActions() {
     return true
   }
 
+  /** Acquitter (avec un commentaire) ou résoudre une alerte : médecin de bord (F9.2). */
+  async function updateAlert(id: number, status: 'acknowledged' | 'resolved', comment?: string) {
+    if (!live()) return false
+    await api(`/alerts/${id}`, { method: 'PATCH', body: { status, comment: comment || undefined } })
+    await loadMissionData()
+    return true
+  }
+
+  /** Marquer un message du sol comme lu (F10.4). */
+  async function markMessageRead(id: number) {
+    if (!live()) return false
+    await api(`/sync/messages/${id}/read`, { method: 'POST' })
+    return true
+  }
+
+  /** Construire et mettre en file le paquet de synthèse vers le sol (F10.1). */
+  async function exportPacket() {
+    if (!live()) return false
+    await api('/sync/export', { method: 'POST', body: {} })
+    return true
+  }
+
+  /** Enregistrer une utilisation en pharmacie, qui décrémente le stock (F11.3, CMO). */
+  async function recordUsage(itemCode: string, quantity: number, patientCode?: string, note?: string) {
+    if (!live()) return false
+    await api('/inventory', {
+      method: 'POST',
+      body: {
+        item_code: itemCode,
+        quantity,
+        patient_code: patientCode || undefined,
+        note: note || undefined,
+      },
+    })
+    return true
+  }
+
   return {
     live,
+    updateAlert,
+    markMessageRead,
+    exportPacket,
+    recordUsage,
     submitCheckin,
     triggerEmergency,
     activeEmergency,

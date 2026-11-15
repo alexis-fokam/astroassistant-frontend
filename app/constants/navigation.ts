@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import {
+  Archive,
   Box,
   CalendarDays,
   ClipboardCheck,
@@ -72,6 +73,7 @@ export const APP_MODULES: AppModule[] = [
       { to: '/cmo/protocoles', label: 'Protocoles', icon: ListChecks },
       { to: '/cmo/pharmacie', label: 'Pharmacie', icon: Pill },
       { to: '/cmo/audit', label: 'Journal d’audit', icon: Shield },
+      { to: '/cmo/archives', label: 'Archives', icon: Archive },
     ],
   },
   {
